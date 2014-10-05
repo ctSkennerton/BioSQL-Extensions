@@ -54,14 +54,14 @@ CREATE TABLE proteome_run(
 -- there is an extra field that links to the
 -- proteome run
 CREATE TABLE sipros_protein_match(
-   proteome_run_id        INTEGER,               -- The id of the proteome run
-   seqfeature_id          INTEGER,               -- The id of the coresponding seqfeature
-   unique_pep_counts      INTEGER,               -- Number of unique peptides in a run
-   total_pep_counts       INTEGER,               -- Number of all peptides in a run
-   uniq_spec_counts       INTEGER,               -- Number of unique PSM in a run
-   total_spec_counts      INTEGER,               -- Number of all PSM in a run
-   balanced_spec_counts   INTEGER,               -- Balanced spectrum count in a run
-   NormaBaldSpecCounts    INTEGER,               -- Normalized Balanced spectrum count in a run
-   target_mat             INTEGER,               -- 1 for target match and 0 for decoy match
-   enrichment             FLOAT                  -- The SIP enrichment of the protein
+    proteome_run_id        INTEGER,              -- The id of the proteome run
+    seqfeature_id          INTEGER,              -- The id of the coresponding seqfeature
+    unique_pep_counts      INTEGER,              -- Number of unique peptides in a run
+    total_pep_counts       INTEGER,              -- Number of all peptides in a run
+    uniq_spec_counts       INTEGER,              -- Number of unique PSM in a run
+    total_spec_counts      INTEGER,              -- Number of all PSM in a run
+    balanced_spec_counts   INTEGER,              -- Balanced spectrum count in a run
+    NormaBaldSpecCounts    INTEGER,              -- Normalized Balanced spectrum count in a run
+    target_mat             INTEGER,              -- 1 for target match and 0 for decoy match
+    enrichment             FLOAT                 -- The SIP enrichment of the protein
 );

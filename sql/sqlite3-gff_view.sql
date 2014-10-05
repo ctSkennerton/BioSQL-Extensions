@@ -38,4 +38,3 @@ AS
     WHERE    f.type_term_id = k.term_id                   AND
              fl.seqfeature_id = f.seqfeature_id           AND
              f.bioentry_id    = e.bioentry_id;
-
