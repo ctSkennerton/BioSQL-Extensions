@@ -1,4 +1,30 @@
--- this isn't quite a perfect view as the source, score and phase
+
+-- basic gff information without the attributes text
+CREATE VIEW gff_base
+AS
+    SELECT   e.accession                                  AS fref,
+             k2.name                                      AS fsource,
+             fl.start_pos                                 AS fstart,
+             fl.end_pos                                   AS fend,
+             k.name                                       AS type,
+             fl.strand                                    AS fstrand,
+             f.seqfeature_id                              AS gid
+    FROM     seqfeature f,
+             location fl,
+             bioentry e
+    JOIN
+             term k
+    ON
+            f.type_term_id = k.term_id
+    JOIN
+            term k2
+    ON
+            f.source_term_id = k2.term_id
+    WHERE
+             fl.seqfeature_id = f.seqfeature_id           AND
+             f.bioentry_id    = e.bioentry_id;
+
+-- this isn't quite a perfect view as the score and phase
 -- attributes are left as dummy values. On gff3 files I've loaded
 -- these are all stored in the attributes of the record so it
 -- would be possible to get them out with a more complicated query
@@ -7,7 +33,7 @@
 CREATE VIEW gff
 AS
     SELECT   gb.fref                                      AS seqid,
-             NULL                                         AS source,
+             gb.fsource                                   AS source,
              gb.type                                      AS type,
              gb.fstart                                    AS start,
              gb.fend                                      AS end,
@@ -21,20 +47,3 @@ AS
     ON       qv.term_id = t.term_id                       AND
              qv.seqfeature_id = gb.gid
     GROUP BY qv.seqfeature_id;
-
--- basic gff information without the attributes text
-CREATE VIEW gff_base
-AS
-    SELECT   e.accession                                  AS fref,
-             fl.start_pos                                 AS fstart,
-             fl.end_pos                                   AS fend,
-             k.name                                       AS type,
-             fl.strand                                    AS fstrand,
-             f.seqfeature_id                              AS gid
-    FROM     seqfeature f,
-             term k,
-             location fl,
-             bioentry e
-    WHERE    f.type_term_id = k.term_id                   AND
-             fl.seqfeature_id = f.seqfeature_id           AND
-             f.bioentry_id    = e.bioentry_id;

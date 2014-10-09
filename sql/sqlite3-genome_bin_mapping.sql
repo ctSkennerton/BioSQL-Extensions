@@ -3,6 +3,9 @@
 -- draft genomes we usually want to link these together as a genome
 -- in many pieces. This is a simple mapping of bioentries that are
 -- found in a BioSQL database to their genome
+
+-- The BioSQL has a table already called bioentry_relationship which can be
+-- used to do something like this
 CREATE TABLE genome_sequence(
     genome_id             INTEGER,
     bioentry_id           INTEGER,
