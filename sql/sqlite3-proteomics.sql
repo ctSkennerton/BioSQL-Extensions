@@ -103,7 +103,7 @@ CREATE TABLE proteome_peptide_match(
     enrichment_ratio       FLOAT                 -- The SIP enrichment of this peptide. Used only in SIP searches
 );
 
-CREATE INDEX identified_peptide_match_idx ON proteome_peptide_match (identified_peptide, proteome_run_id)
+CREATE INDEX identified_peptide_match_idx ON proteome_peptide_match (identified_peptide, proteome_run_id);
 
 -- Links the peptides to their matched
 -- proteins for a specific proteome run
@@ -113,5 +113,5 @@ CREATE TABLE proteome_peptide_protein_match(
     protein_match_id      INTEGER NOT NULL      -- Link to the protein information
 );
 
-CREATE INDEX  protein_peptide_match_idx ON proteome_peptide_protein_match(protein_match_id, proteome_run_id)
-CREATE INDEX  peptide_protein_match_idx ON proteome_peptide_protein_match(peptide_match_id, proteome_run_id)
+CREATE INDEX  protein_peptide_match_idx ON proteome_peptide_protein_match(protein_match_id, proteome_run_id);
+CREATE INDEX  peptide_protein_match_idx ON proteome_peptide_protein_match(peptide_match_id, proteome_run_id);
