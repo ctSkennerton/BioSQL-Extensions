@@ -78,8 +78,7 @@ CREATE INDEX prot_prot_match_seqfeat ON proteome_protein_match(seqfeature_id, pr
 CREATE TABLE proteome_protein_group(
     proteome_run_id        INTEGER,             -- Which run does this protein group belong to
     protein_group_id       INTEGER,             -- The ID of this particular protein group
-    protein_match_id       INTEGER,             -- A reference to the row of proteome_protein_match
-    PRIMARY KEY (proteome_run_id, protein_group_id)
+    protein_match_id       INTEGER              -- A reference to the row of proteome_protein_match
 );
 
 -- This table is essentially the columns of
