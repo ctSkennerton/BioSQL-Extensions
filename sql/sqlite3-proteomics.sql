@@ -11,7 +11,7 @@ CREATE TABLE proteome_database(
 -- collection of proteins that are used
 -- for searching
 CREATE TABLE proteome_database_proteins(
-    proteome_database_id  INTEGER PRIMARY KEY,   -- Internal use only, stores the ID of the proteome database
+    proteome_database_id  INTEGER,               -- Internal use only, stores the ID of the proteome database
     seqfeature_id         INTEGER                -- Stores the seqfeature ID of all the proteins in this database
 );
 
@@ -40,10 +40,11 @@ CREATE TABLE proteome_run(
     search_prog_version   TEXT,                  -- Version of the seqrch program used
     search_prog_command   TEXT,                  -- what got typed into the commandline for the search program
     sample_id             INTEGER,               -- The sample that this run was generated from
-    fdr                   FLOAT,                 -- The false detection rate
+    fdr                   REAL,                  -- The false detection rate
     min_num_pep           INTEGER,               -- The minimum number of peptides required to call a match
     min_num_uniq_pep      INTEGER,               -- The minimum number of unique peptides required to call a match
-    sip                   INTEGER                -- Was this a sip enrichment run: 1 = yes, 0 = no
+    sip                   INTEGER,               -- Was this a sip enrichment run: 1 = yes, 0 = no
+    config                BLOB                   -- The config file in its entirity for later reference
 );
 
 -- This table essentially corresponds to the
@@ -54,8 +55,9 @@ CREATE TABLE proteome_run(
 -- there is an extra field that links to the
 -- proteome run
 CREATE TABLE proteome_protein_match(
-    proteome_run_id        INTEGER,              -- The id of the proteome run
+    protein_match_id       INTEGER PRIMARY KEY,  -- Internal ID for this row that can be referenced by other tables
     seqfeature_id          INTEGER,              -- The id of the coresponding seqfeature
+    proteome_run_id        INTEGER,              -- The id of the proteome run
     unique_pep_counts      INTEGER,              -- Number of unique peptides in a run
     total_pep_counts       INTEGER,              -- Number of all peptides in a run
     uniq_spec_counts       INTEGER,              -- Number of unique PSM in a run
@@ -63,7 +65,20 @@ CREATE TABLE proteome_protein_match(
     balanced_spec_counts   FLOAT,                -- Balanced spectrum count in a run
     norm_bal_spec_counts   FLOAT,                -- Normalized Balanced spectrum count in a run
     target_mat             INTEGER,              -- 1 for target match and 0 for decoy match
-    enrichment             FLOAT                 -- The SIP enrichment of the protein
+    enrichment             FLOAT,                -- The SIP enrichment of the protein
+    protein_group_id       INTEGER               -- store key to the proteome_protein_group
+);
+
+CREATE INDEX prot_prot_match_seqfeat ON proteome_protein_match(seqfeature_id, proteome_run_id);
+
+-- Sipros will group proteins into groups if
+-- they all contain the same identified 
+-- peptides. This table is used to keep track
+-- of that information
+CREATE TABLE proteome_protein_group(
+    protein_group_id       INTEGER,             -- The ID of this particular protein group
+    protein_match_id       INTEGER              -- A reference to the row of proteome_protein_match
+    UNIQUE(protein_group_id, protein_match_id)  -- The same row shouldn't be added twice
 );
 
 -- This table is essentially the columns of
@@ -74,7 +89,7 @@ CREATE TABLE proteome_protein_match(
 -- a separate table that allows for
 -- one-to-many relationships
 CREATE TABLE proteome_peptide_match(
-    peptide_id             INTEGER PRIMARY KEY,
+    peptide_match_id       INTEGER PRIMARY KEY,
     proteome_run_id        INTEGER,
     identified_peptide     TEXT,                 -- Identified peptide sequence with potential PTMs and mutations
     parent_charge          INTEGER,              -- Charge state of identified peptide
@@ -88,10 +103,15 @@ CREATE TABLE proteome_peptide_match(
     enrichment_ratio       FLOAT                 -- The SIP enrichment of this peptide. Used only in SIP searches
 );
 
+CREATE INDEX identified_peptide_match_idx ON proteome_peptide_match (identified_peptide, proteome_run_id)
+
 -- Links the peptides to their matched
 -- proteins for a specific proteome run
 CREATE TABLE proteome_peptide_protein_match(
     proteome_run_id       INTEGER NOT NULL,     -- Link to the metadata of the particular proteome
-    peptide_id            INTEGER NOT NULL,     -- Link to the peptide information
-    protein_id            INTEGER NOT NULL      -- Link to the protein information
+    peptide_match_id      INTEGER NOT NULL,     -- Link to the peptide information
+    protein_match_id      INTEGER NOT NULL      -- Link to the protein information
 );
+
+CREATE INDEX  protein_peptide_match_idx ON proteome_peptide_protein_match(protein_match_id, proteome_run_id)
+CREATE INDEX  peptide_protein_match_idx ON proteome_peptide_protein_match(peptide_match_id, proteome_run_id)
