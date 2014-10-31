@@ -77,7 +77,7 @@ CREATE INDEX prot_prot_match_seqfeat ON proteome_protein_match(seqfeature_id, pr
 -- of that information
 CREATE TABLE proteome_protein_group(
     protein_group_id       INTEGER,             -- The ID of this particular protein group
-    protein_match_id       INTEGER              -- A reference to the row of proteome_protein_match
+    protein_match_id       INTEGER,             -- A reference to the row of proteome_protein_match
     UNIQUE(protein_group_id, protein_match_id)  -- The same row shouldn't be added twice
 );
 
