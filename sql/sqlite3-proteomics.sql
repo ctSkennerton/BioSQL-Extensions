@@ -100,7 +100,8 @@ CREATE TABLE proteome_peptide_match(
     best_score             FLOAT,                -- The best score of those PSMs
     psm                    TEXT,                 -- List of PSMs for the peptide: FT2_Filename[Scan_Number]
     scan_type              TEXT,                 -- Scan type of those PSMs
-    enrichment_ratio       FLOAT                 -- The SIP enrichment of this peptide. Used only in SIP searches
+    enrichment_ratio       FLOAT,                -- The SIP enrichment of this peptide. Used only in SIP searches
+    UNIQUE(proteome_run_id, identified_peptide)
 );
 
 CREATE INDEX identified_peptide_match_idx ON proteome_peptide_match (identified_peptide, proteome_run_id);
