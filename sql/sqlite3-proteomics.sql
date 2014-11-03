@@ -101,7 +101,7 @@ CREATE TABLE proteome_peptide_match(
     psm                    TEXT,                 -- List of PSMs for the peptide: FT2_Filename[Scan_Number]
     scan_type              TEXT,                 -- Scan type of those PSMs
     enrichment_ratio       FLOAT,                -- The SIP enrichment of this peptide. Used only in SIP searches
-    UNIQUE(proteome_run_id, identified_peptide)
+    UNIQUE(proteome_run_id, identified_peptide, parent_charge)
 );
 
 CREATE INDEX identified_peptide_match_idx ON proteome_peptide_match (identified_peptide, proteome_run_id);
@@ -109,10 +109,10 @@ CREATE INDEX identified_peptide_match_idx ON proteome_peptide_match (identified_
 -- Links the peptides to their matched
 -- proteins for a specific proteome run
 CREATE TABLE proteome_peptide_protein_match(
-    proteome_run_id       INTEGER NOT NULL,     -- Link to the metadata of the particular proteome
     peptide_match_id      INTEGER NOT NULL,     -- Link to the peptide information
-    protein_match_id      INTEGER NOT NULL      -- Link to the protein information
+    seqfeature_id         INTEGER NOT NULL,     -- Link to the sequence feature where this peptide was found
+    UNIQUE(peptide_match_id, seqfeature_id)     -- contraint to avoid duplicated features
 );
 
-CREATE INDEX  protein_peptide_match_idx ON proteome_peptide_protein_match(protein_match_id, proteome_run_id);
-CREATE INDEX  peptide_protein_match_idx ON proteome_peptide_protein_match(peptide_match_id, proteome_run_id);
+CREATE INDEX  protein_peptide_match_idx ON proteome_peptide_protein_match(seqfeature_id);
+CREATE INDEX  peptide_protein_match_idx ON proteome_peptide_protein_match(peptide_match_id);
