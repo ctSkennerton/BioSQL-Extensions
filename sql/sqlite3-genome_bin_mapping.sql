@@ -24,7 +24,7 @@ CREATE TABLE genome(
 -- The BioSQL has a table already called bioentry_relationship which can be
 -- used to do something like this but I want another table to keep these
 -- higher order mappings separate from the bioentry table
-CREATE TABLE genome_sequence(
+CREATE TABLE genome_bioentry(
     genome_id             INTEGER,
     bioentry_id           INTEGER,
     FOREIGN KEY(genome_id) REFERENCES genome(genome_id),
