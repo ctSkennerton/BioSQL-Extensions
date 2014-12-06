@@ -2,8 +2,9 @@
 -- metaproteome database
 CREATE TABLE proteome_database(
     proteome_database_id  INTEGER PRIMARY KEY,   -- Internal use only, stores the ID of the proteome database that other tables will refer to
-    name                  TEXT,                  -- A human readable name for the database
-    description           TEXT                   -- Some freeform text in case you want to write more
+    name                  TEXT NOT NULL,         -- A human readable name for the database
+    description           TEXT,                  -- Some freeform text in case you want to write more
+    UNIQUE(name)
 );
 
 -- Map the proteins to the particular
@@ -11,8 +12,9 @@ CREATE TABLE proteome_database(
 -- collection of proteins that are used
 -- for searching
 CREATE TABLE proteome_database_proteins(
-    proteome_database_id  INTEGER,               -- Internal use only, stores the ID of the proteome database
-    seqfeature_id         INTEGER                -- Stores the seqfeature ID of all the proteins in this database
+    proteome_database_id  INTEGER NOT NULL,      -- Internal use only, stores the ID of the proteome database
+    seqfeature_id         INTEGER NOT NULL,      -- Stores the seqfeature ID of all the proteins in this database
+    UNIQUE(proteome_database_id, seqfeature_id)
 );
 
 -- Add in some really basic information about
@@ -20,9 +22,10 @@ CREATE TABLE proteome_database_proteins(
 -- mass-spec
 CREATE TABLE proteome_sample(
     sample_id             INTEGER PRIMARY KEY,   -- Internal use only, stores the ID of the sample
-    name                  TEXT,                  -- The name of the sample
+    name                  TEXT NOT NULL,         -- The name of the sample
     description           TEXT,                  -- Copout free-text description for writing whatever about the sample
-    date                  TEXT                   -- The date when the sample was taken
+    date                  TEXT,                  -- The date when the sample was taken
+    UNIQUE(name)
 );
 
 -- This table stores the metadata used to
@@ -32,17 +35,17 @@ CREATE TABLE proteome_sample(
 -- file
 CREATE TABLE proteome_run(
     proteome_run_id       INTEGER PRIMARY KEY,   -- Internal use only, stores the ID of the proteome run
-    name                  TEXT,                  -- Give a catchy human readable name for this run
+    name                  TEXT NOT NULL,         -- Give a catchy human readable name for this run
     machine               TEXT,                  -- What machine/type of mass spec was used to generate the raw data
     date                  TEXT,                  -- The date when this run was conducted
-    proteome_database_id  INTEGER,               -- The ID of the proteome database
+    proteome_database_id  INTEGER NOT NULL,      -- The ID of the proteome database
     search_prog           TEXT,                  -- Name of the search program. Redundant will always be sipros
     search_prog_version   TEXT,                  -- Version of the seqrch program used
     search_prog_command   TEXT,                  -- what got typed into the commandline for the search program
-    sample_id             INTEGER,               -- The sample that this run was generated from
-    fdr                   REAL,                  -- The false detection rate
-    min_num_pep           INTEGER,               -- The minimum number of peptides required to call a match
-    min_num_uniq_pep      INTEGER,               -- The minimum number of unique peptides required to call a match
+    sample_id             INTEGER NOT NULL,      -- The sample that this run was generated from
+    fdr                   REAL NOT NULL,         -- The false detection rate
+    min_num_pep           INTEGER NOT NULL,      -- The minimum number of peptides required to call a match
+    min_num_uniq_pep      INTEGER NOT NULL,      -- The minimum number of unique peptides required to call a match
     sip                   INTEGER,               -- Was this a sip enrichment run: 1 = yes, 0 = no
     config                BLOB                   -- The config file in its entirity for later reference
 );
@@ -56,8 +59,8 @@ CREATE TABLE proteome_run(
 -- proteome run
 CREATE TABLE proteome_protein_match(
     protein_match_id       INTEGER PRIMARY KEY,  -- Internal ID for this row that can be referenced by other tables
-    seqfeature_id          INTEGER,              -- The id of the coresponding seqfeature
-    proteome_run_id        INTEGER,              -- The id of the proteome run
+    seqfeature_id          INTEGER NOT NULL,     -- The id of the coresponding seqfeature
+    proteome_run_id        INTEGER NOT NULL,     -- The id of the proteome run
     unique_pep_counts      INTEGER,              -- Number of unique peptides in a run
     total_pep_counts       INTEGER,              -- Number of all peptides in a run
     uniq_spec_counts       INTEGER,              -- Number of unique PSM in a run
@@ -76,9 +79,9 @@ CREATE INDEX prot_prot_match_seqfeat ON proteome_protein_match(seqfeature_id, pr
 -- peptides. This table is used to keep track
 -- of that information
 CREATE TABLE proteome_protein_group(
-    proteome_run_id        INTEGER,             -- Which run does this protein group belong to
-    protein_group_id       INTEGER,             -- The ID of this particular protein group
-    protein_match_id       INTEGER              -- A reference to the row of proteome_protein_match
+    proteome_run_id        INTEGER NOT NULL,    -- Which run does this protein group belong to
+    protein_group_id       INTEGER NOT NULL,    -- The ID of this particular protein group
+    protein_match_id       INTEGER NOT NULL     -- A reference to the row of proteome_protein_match
 );
 
 -- This table is essentially the columns of
@@ -90,13 +93,13 @@ CREATE TABLE proteome_protein_group(
 -- one-to-many relationships
 CREATE TABLE proteome_peptide_match(
     peptide_match_id       INTEGER PRIMARY KEY,
-    proteome_run_id        INTEGER,
-    identified_peptide     TEXT,                 -- Identified peptide sequence with potential PTMs and mutations
-    parent_charge          INTEGER,              -- Charge state of identified peptide
+    proteome_run_id        INTEGER NOT NULL,
+    identified_peptide     TEXT NOT NULL,        -- Identified peptide sequence with potential PTMs and mutations
+    parent_charge          INTEGER NOT NULL,     -- Charge state of identified peptide
     original_peptide       TEXT,                 -- Original peptide sequence in the FASTA file
     protein_count          INTEGER,              -- Number of proteins that the peptide can be assigned to
     target_match           INTEGER,              -- 1 for target match and 0 for decoy match
-    spectral_count         INTEGER,              -- Number of PSMs in which the peptide is identified
+    spectral_count         INTEGER NOT NULL,     -- Number of PSMs in which the peptide is identified
     best_score             FLOAT,                -- The best score of those PSMs
     psm                    TEXT,                 -- List of PSMs for the peptide: FT2_Filename[Scan_Number]
     scan_type              TEXT,                 -- Scan type of those PSMs
