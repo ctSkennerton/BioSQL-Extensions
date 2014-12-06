@@ -4,12 +4,6 @@
 -- in many pieces. This is a simple mapping of bioentries that are
 -- found in a BioSQL database to their genome
 
--- The BioSQL has a table already called bioentry_relationship which can be
--- used to do something like this
-CREATE TABLE genome_sequence(
-    genome_id             INTEGER,
-    bioentry_id           INTEGER,
-);
 
 -- Store some basic metadata about our genomes. For now just the name,
 -- description and the taxon id should be good enough. Also included
@@ -25,4 +19,14 @@ CREATE TABLE genome(
     name                  TEXT,
     description           TEXT,
     tmp_tax_string        TEXT
+);
+
+-- The BioSQL has a table already called bioentry_relationship which can be
+-- used to do something like this but I want another table to keep these
+-- higher order mappings separate from the bioentry table
+CREATE TABLE genome_bioentry(
+    genome_id             INTEGER,
+    bioentry_id           INTEGER,
+    FOREIGN KEY(genome_id) REFERENCES genome(genome_id),
+    FOREIGN KEY(bioentry_id) REFERENCES bioentry(bioentry_id)
 );
