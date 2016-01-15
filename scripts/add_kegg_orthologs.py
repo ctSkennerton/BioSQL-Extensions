@@ -9,6 +9,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--database', help='name of premade biosql database')
     parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default='metagenomic_database')
     parser.add_argument('-r', '--driver', help='Python database driver to use (must be installed separately)', choices=["MySQLdb", "psycopg2", "sqlite3"], default='psycopg2')
+    parser.add_argument('-H', '--host', help='host to connect to', default='localhost')
     parser.add_argument('-p', '--port', help='post to connect to on the host')
     parser.add_argument('-u', '--user', help='database user name')
     parser.add_argument('-P','--password', help='database password for user')
@@ -20,7 +21,7 @@ if __name__ == '__main__':
     #sys.exit(0)
     server = BioSeqDatabase.open_database(driver=args.driver, db=args.database, user=args.user, host=args.host, passwd=args.password)
     dbxref_check = 'select * from dbxref where accession = %s'
-    dbxref_insert = 'insert into dbxref (dbname, accession, version) values ("ko", %s, 1)'
+    dbxref_insert = 'insert into dbxref (dbname, accession, version) values (%s, %s, 1)'
     term_dbxref_insert = 'insert into term_dbxref (term_id, dbxref_id) values (%s, %s)'
     term_id_ko = 'select term_id from term where identifier = %s'
     ko_ontology_id_select = "select ontology_id from ontology where name = %s"
@@ -29,10 +30,15 @@ if __name__ == '__main__':
     dbxref_qv_insert = 'insert into dbxref_qualifier_value values (%s, %s, %s, %s)'
 
 
-    kegg_ontology_id = server.adaptor.execute_and_fetch_col0(ko_ontology_id_select, 'KEGG')[0]
-    if not kegg_ontology_id:
-        server.adaptor.execute(ko_ontology_insert, 'KEGG')
-        kegg_ontology_id = server.adaptor.execute_and_fetch_col0(ko_ontology_id_select, 'KEGG')[0]
+
+    ontology_seqfeature_key_id = server.adaptor.execute_and_fetch_col0('select ontology_id from ontology where name = \'SeqFeature Keys\'')[0]
+
+
+    try:
+        kegg_ontology_id = server.adaptor.execute_and_fetch_col0(ko_ontology_id_select, ('KEGG',))[0]
+    except IndexError:
+        server.adaptor.execute(ko_ontology_insert, ('KEGG',))
+        kegg_ontology_id = server.adaptor.execute_and_fetch_col0(ko_ontology_id_select, ('KEGG',))[0]
 
 
     for ko, qv in data.items():
@@ -41,7 +47,7 @@ if __name__ == '__main__':
         if len(rows) == 0:
             # there are no terms that match this KO, need to add it in
             server.adaptor.execute(term_ko_insert, (ko, ko, kegg_ontology_id))
-            ko_term_id = server.adaptor.execute_and_fetchall(term_id_ko, (ko,))
+            ko_term_id = server.adaptor.execute_and_fetch_col0(term_id_ko, (ko,))[0]
         elif len(rows) == 1:
             ko_term_id = rows[0][0]
         else:
@@ -55,7 +61,7 @@ if __name__ == '__main__':
         else:
             # no dbxref
             # now insert the crossref and link it to the term
-            server.adaptor.execute(dbxref_insert, (ko,))
+            server.adaptor.execute(dbxref_insert, ('ko', ko))
             dbxref_id = server.adaptor.execute_and_fetch_col0(dbxref_check, (ko,))[0]
 
         rows = server.adaptor.execute_and_fetchall('select * from term_dbxref where dbxref_id = %s and term_id = %s', (dbxref_id, ko_term_id))
@@ -69,7 +75,12 @@ if __name__ == '__main__':
 
         # add in the qualifiers for the cross reference
         for term_name, value in qv.items():
-            term_id = server.adaptor.execute_and_fetch_col0('select term_id from term where name = %s', (term_name,))[0]
+            try:
+                term_id = server.adaptor.execute_and_fetch_col0('select term_id from term where name = %s', (term_name,))[0]
+            except IndexError:
+                server.adaptor.execute('insert into term (name, ontology_id) values(%s, %s)', (term_name,ontology_seqfeature_key_id ))
+                term_id = server.adaptor.execute_and_fetch_col0('select term_id from term where name = %s', (term_name,))[0]
+
             rank = 0
 
             if isinstance(value, list):
@@ -79,7 +90,7 @@ if __name__ == '__main__':
                         server.adaptor.execute(dbxref_qv_insert, (dbxref_id, term_id, rank, i))
                     rank += 1
             else:
-                rows = server.adaptor.execute_and_fetchall('select * from dbxref_qualifier_value where dbxref_id = %s and term_id = %s and value = %s', (dbxref_id, term_id, i))
+                rows = server.adaptor.execute_and_fetchall('select * from dbxref_qualifier_value where dbxref_id = %s and term_id = %s and value = %s', (dbxref_id, term_id, value))
                 if len(rows) == 0:
                     server.adaptor.execute(dbxref_qv_insert, (dbxref_id, term_id, rank, value))
 
