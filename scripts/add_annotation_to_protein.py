@@ -26,7 +26,7 @@ def add_kegg_annotation(db, mapping, term_key):
     db_loader = Loader.DatabaseLoader(db.adaptor, db.dbid, False)
 
     # We need the internal ID for a CDS and locus_tag types for later
-    cds_term_id = db.adaptor.execute_and_fetchall('select term_id from term where name = "CDS"')[0][0]
+    cds_term_id = db.adaptor.execute_and_fetchall('select term_id from term where name = \'CDS\'')[0][0]
     locus_tag_term_id = db.adaptor.execute_and_fetchall('select term_id from term where name = %s', (term_key,))[0][0]
     for protein, kegg_id in mapping.items():
         # Start by looking for bioentries that have the name
@@ -35,14 +35,14 @@ def add_kegg_annotation(db, mapping, term_key):
 
             # ok now lets add in our new qualifier to to the CDS feature of this bioentry
             # start by finding the seqfeature id so that we can add qualifiers
-            sql = r'select sf.seqfeature_id from seqfeature sf where bioentry_id = ? and sf.type_term_id = ?;'
+            sql = r'select sf.seqfeature_id from seqfeature sf where bioentry_id = %s and sf.type_term_id = %s'
             seqfeature_id = db.adaptor.execute_and_fetchall(sql, (seqid, cds_term_id))[0][0]
 
         except IndexError, e:
             #print(e, file=sys.stderr)
 
             # so if that fails then look for the name in the locus tag of the seqfeatures
-            sql = r'select seqfeature_id from seqfeature_qualifier_value where term_id = ? and value = ?'
+            sql = r'select seqfeature_id from seqfeature_qualifier_value where term_id = %s and value = %s'
             try:
                 seqfeature_id = db.adaptor.execute_and_fetchall(sql, (locus_tag_term_id, protein))[0][0]
             except IndexError, e:
@@ -51,8 +51,8 @@ def add_kegg_annotation(db, mapping, term_key):
 
         print("loading ",kegg_id," into ",protein,"(",seqfeature_id,")")
         # now add in our qualifier and value onto that seqfeature
-        if 'KO:' not in kegg_id:
-            kegg_id = 'KO:' + kegg_id
+        if 'ko:' not in kegg_id:
+            kegg_id = 'ko:' + kegg_id
         db_loader._load_seqfeature_qualifiers({'db_xref': [kegg_id]}, seqfeature_id)
 
 if __name__ == '__main__':
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     parser.add_argument('-H', '--host', help='host to connect to', default='localhost')
     parser.add_argument('-k', '--kegg', type=argparse.FileType(),
         help='input file containing a two column, tab delimited, file where '\
-        'the first column is the nume of a protein stored in the database '\
+        'the first column is the name of a protein stored in the database '\
         'and the second column is the KEGG ontology of the protein')
     parser.add_argument('-t', '--term', help='the key used to match the protein IDs with their equivelent in the database. '\
             'This will be the qualifier for the proteins from the genbank or gff file used when loading the sequence in. '\
@@ -83,6 +83,6 @@ if __name__ == '__main__':
             passwd=args.password)
 
     db = server[args.dbname]
-    add_kegg_annotation(db, mapping args.term)
+    add_kegg_annotation(db, mapping, args.term)
     server.commit()
 
