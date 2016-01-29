@@ -46,10 +46,11 @@ def add_kegg_annotation(db, mapping, term_key):
             try:
                 seqfeature_id = db.adaptor.execute_and_fetchall(sql, (locus_tag_term_id, protein))[0][0]
             except IndexError, e:
-                print(e, file=sys.stderr)
-                raise e
+                print('cannot find '+ protein + ' in database, skipping', file=sys.stderr)
+                continue
+                #raise e
 
-        print("loading ",kegg_id," into ",protein,"(",seqfeature_id,")")
+        #print("loading ",kegg_id," into ",protein,"(",seqfeature_id,")")
         # now add in our qualifier and value onto that seqfeature
         if 'ko:' not in kegg_id:
             kegg_id = 'ko:' + kegg_id
