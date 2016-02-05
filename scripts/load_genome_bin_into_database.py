@@ -22,6 +22,14 @@ def load_gff(db, gff_file, fasta_file, fetch_taxonomy=False, taxid=None):
 
     db.load(saved, fetch_NCBI_taxonomy=fetch_taxonomy)
 
+def load_genbank(db, genbank_file, fetch_taxonomy=False, taxid=None):
+    with open(genbank_file) as fp:
+        saved = []
+        for rec in SeqIO.parse(fp, 'genbank' ):
+            saved.append(add_taxid(rec, taxid))
+        db.load(saved, fetch_NCBI_taxonomy=fetch_taxonomy)
+
+
 def update_left_right_taxon_values(server, left_value):
     """ update the left and right values in the table
     """
@@ -76,9 +84,9 @@ def insert_taxon_rank(server, parent_taxon_id, parent_left_value, parent_right_v
     # make sure that the name doesn't already exist
     rows = server.adaptor.execute_and_fetch_col0('select taxon_id from taxon_name where name = %s', (node_name,))
     if rows:
-        return server.adaptor.execute_and_fetch_col0(
+        return server.adaptor.execute_and_fetchall(
                 'select taxon_id, left_value, right_value from taxon where taxon_id = %s '
-                (taxon_id, ))
+                (rows[0][0], ))
     else:
         left_value = parent_right_value
         right_value = parent_right_value + 1
@@ -133,6 +141,9 @@ def main(args):
         if args.gff is not None and args.fasta is not None:
             load_gff(db, args.gff, args.fasta, args.tax_lookup, args.taxid)
             server.adaptor.commit()
+        elif args.genbank is not None:
+            load_genbank(db, args.genbank, args.tax_lookup)
+            server.adaptor.commit()
     except:
         server.adaptor.rollback()
         raise
@@ -140,9 +151,12 @@ def main(args):
     if args.new_taxons:
         taxon_id = add_new_taxonomy(server, args.new_taxons, args.taxid)
 
-        #recs = []
-        for rec in SeqIO.parse(args.fasta, 'fasta'):
-            #recs.append((taxon_id, db.adaptor.fetch_seqid_by_display_id(db.dbid, rec.name)))
+        if args.fasta is not None:
+            gen = SeqIO.parse(args.fasta, 'fasta')
+        elif args.genbank is not None:
+            gen = SeqIO.parse(args.genbank, 'genbank')
+
+        for rec in gen:
             server.adaptor.execute('update bioentry set taxon_id = %s where bioentry_id = %s',(taxon_id, db.adaptor.fetch_seqid_by_display_id(db.dbid, rec.name)))
         server.commit()
 
@@ -158,6 +172,7 @@ if __name__ == "__main__":
     parser.add_argument('-H', '--host', help='host to connect to', default='localhost')
     parser.add_argument('-f', '--fasta', help='fasta file to add into the database')
     parser.add_argument('-g', '--gff', help='gff file of reatures to add into the database. Must be paired with a fasta file')
+    parser.add_argument('-G', '--genbank', help='genbank file to add into the database')
     parser.add_argument('-t', '--lookup-taxonomy', dest='tax_lookup', help='access taxonomy information on NCBI servers', action="store_true", default=False)
     parser.add_argument('-T', '--taxid', help='supply a ncbi taxonomy id that will be applied to all sequences in the file, or if new_taxons are supplied on the command line this taxonomy ID will be used as the parent taxonomy for the novel lineages', required=True, default=None)
     parser.add_argument('new_taxons', nargs="*", help='specify novel taxonomies not currenly in the NCBI database. each taxon specified on the command line should take the form of <taxon_name>:<taxon_rank>. Check the taxon table in the database for the appropriate values for the taxon_rank. e.g. ANME-2ab:family ANME-2b:genus ANME-hr1:species')
