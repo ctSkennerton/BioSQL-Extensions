@@ -85,8 +85,8 @@ def insert_taxon_rank(server, parent_taxon_id, parent_left_value, parent_right_v
     rows = server.adaptor.execute_and_fetch_col0('select taxon_id from taxon_name where name = %s', (node_name,))
     if rows:
         return server.adaptor.execute_and_fetchall(
-                'select taxon_id, left_value, right_value from taxon where taxon_id = %s '
-                (rows[0][0], ))
+                'select taxon_id, left_value, right_value from taxon where taxon_id = %s ',
+                (rows[0], ))[0]
     else:
         left_value = parent_right_value
         right_value = parent_right_value + 1
