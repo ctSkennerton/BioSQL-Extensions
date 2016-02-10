@@ -96,17 +96,23 @@ def add_new_taxonomy(server, new_taxons, parent_ncbi_tax_id):
     parent_left_value = None
     parent_right_value = None
     if parent_ncbi_tax_id:
-        parent_taxid, parent_left_value, parent_right_value = \
+        try:
+            parent_taxid, parent_left_value, parent_right_value = \
                 server.adaptor.execute_one(
                         'select taxon_id, left_value, right_value '
                         'from taxon where ncbi_taxon_id = %s',
                         (parent_ncbi_tax_id,))
-        if not parent_taxid:
+        except AssertionError:
             # the given ncbi taxonomy id isn't currently in the database
             # download it using the Entrez API
             db_loader = Loader.DatabaseLoader(server.adaptor, server.values()[0], True)
             handle = Entrez.efetch( db="taxonomy", id=str(parent_ncbi_tax_id), retmode="XML")
             taxon_record = Entrez.read(handle)
+            taxon_record[0]['LineageEx'].append(
+                    {'Rank': taxon_record[0]['Rank'],
+                        'ScientificName': taxon_record[0]['ScientificName'],
+                        'TaxId': taxon_record[0]['TaxId']
+                        })
             parent_taxid, parent_left_value, parent_right_value = db_loader._get_taxon_id_from_ncbi_lineage(
                                         taxon_record[0]["LineageEx"])
 
