@@ -11,6 +11,10 @@ from Bio.SeqRecord import SeqRecord
 def extract_feature(dbrec, output_format, fp):
 
     for feature in dbrec.features:
+        # only print the proteins
+        if output_format == 'feat-prot' and feature.type != 'CDS':
+            continue
+
         feat_extract = feature.extract(dbrec.seq.toseq())
         if output_format == 'feat-prot':
             feat_extract = feat_extract.translate()
@@ -66,7 +70,7 @@ def main(args):
         if args.split_species:
             taxon_file_mapping = {}
             for k, v in dbids.items():
-                tname = server.adaptor.execute_and_fetch_col0("SELECT name from taxon_name where taxon_id = %s", (v,))[0]
+                tname = server.adaptor.execute_and_fetch_col0("SELECT name from taxon_name where taxon_id = %s and name_class = %s", (v,'scientific name'))[0]
                 tname = tname.replace(' ', '_')
                 if args.output_format == 'gb':
                     tname += '.gb'
