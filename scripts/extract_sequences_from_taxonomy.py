@@ -7,15 +7,6 @@ from BioSQL import BioSeqDatabase
 from BioSQL.BioSeq import DBSeqRecord
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
-from Bio import Entrez
-Entrez.email = 'c.skennerton@gmail.com'
-
-class FileManager(object):
-    def __init__(self, taxid, filename):
-        self.t = taxid
-        self.f = filename
-        self.a = False
-
 
 def extract_feature(dbrec, output_format, fp):
 
@@ -56,7 +47,7 @@ def main(args):
                 "(SELECT DISTINCT include.taxon_id FROM taxon "\
                 "INNER JOIN taxon as include ON (include.left_value "\
                 "BETWEEN taxon.left_value AND taxon.right_value) "\
-                "WHERE taxon.taxon_id  = %s) AND include.right_value = include.left_value + 1)"
+                "WHERE taxon.ncbi_taxon_id  = %s) AND include.right_value = include.left_value + 1)"
 
         rows = server.adaptor.execute_and_fetchall(taxon_id_lookup_sql, (ncbi_tax,))
     except:
