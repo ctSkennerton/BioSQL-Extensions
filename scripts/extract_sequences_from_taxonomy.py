@@ -7,24 +7,86 @@ from BioSQL import BioSeqDatabase
 from BioSQL.BioSeq import DBSeqRecord
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
+from Bio.Seq import reverse_complement, translate as bio_translate
 
-def extract_feature(dbrec, output_format, fp):
+def generate_placeholders(l):
+    placeholder= ['%s'] # use ? For SQLite. See DBAPI paramstyle.
+    return ', '.join(placeholder * l)
+
+
+def chunks(l, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+
+def extract_feature_sql(server, dbids, type=['CDS', 'rRNA', 'tRNA'], qualifier=['ID','locus_tag'], translate=False):
+    """raw sql extraction of fasta seqfeatures
+    """
+    for chunk in chunks(dbids, 900):
+
+
+        seqs = dict(server.adaptor.execute_and_fetchall(\
+                'SELECT bioentry_id, seq FROM biosequence WHERE bioentry_id IN ({})'.format(\
+                generate_placeholders(len(chunk))),\
+                tuple(chunk)))
+
+        feat_select_simple_sql = 'SELECT seqfeature_id, bioentry_id FROM seqfeature WHERE bioentry_id IN ({})'.format(generate_placeholders(len(chunk)))
+        features =  dict(server.adaptor.execute_and_fetchall(feat_select_simple_sql, tuple(chunk)))
+        for feat_chunk in chunks(features.keys(), 900):
+
+            location_select_sql = 'SELECT seqfeature_id, strand, start_pos, end_pos FROM location WHERE seqfeature_id IN ({})'.format(generate_placeholders(len(feat_chunk)))
+            qual_select_sql = 'SELECT seqfeature_id, name, value FROM seqfeature_qualifier_value qv, term t WHERE seqfeature_id IN ({}) AND t.term_id = qv.term_id'.format(generate_placeholders(len(feat_chunk)))
+            qv = {}
+            for seqfeature_id, name, value in server.adaptor.execute_and_fetchall(qual_select_sql, tuple(feat_chunk)):
+                try:
+                    qv[seqfeature_id][name] = value
+                except KeyError:
+                    qv[seqfeature_id] = {}
+                    qv[seqfeature_id][name] = value
+
+            for seqfeature_id, strand, start_pos, end_pos in server.adaptor.execute_and_fetchall(location_select_sql, tuple(feat_chunk)):
+                name = ''
+                for q in qualifier:
+                    try:
+                        name += qv[seqfeature_id][q] + ' '
+
+                    except KeyError:
+                        pass
+                seq = seqs[features[seqfeature_id]][start_pos-1:end_pos]
+                if strand == -1:
+                    seq = reverse_complement(seq)
+
+                if translate:
+                    seq = bio_translate(seq)
+                name += str(seqfeature_id)
+                try:
+                    name += ' ' + qv[seqfeature_id]['product']
+                except KeyError:
+                    pass
+
+                print(">{}\n{}".format(name, seq))
+
+
+
+def extract_feature(dbrec, output_format, fp, wanted_types=['CDS','rRNA', 'tRNA'], id_tag=None):
 
     for feature in dbrec.features:
         # only print the proteins
-        if output_format == 'feat-prot' and feature.type != 'CDS':
+        if feature.type not in wanted_types:
             continue
 
         feat_extract = feature.extract(dbrec.seq.toseq())
         if output_format == 'feat-prot':
             feat_extract = feat_extract.translate()
-        try:
-            seqid = feature.qualifiers['ID'][0]
-        except KeyError:
+
+        if id_tag:
             try:
-                seqid = feature.qualifiers['locus_tag'][0]
+                seqid = feature.qualifiers[id_tag][0]
             except KeyError:
-                seqid = feature._seqfeature_id
+                print("WARNING: cannot find {} tag for seqfeature {}".format(id_tag, feature._seqfeature_id), file=sys.stderr)
+        else:
+            seqid = feature._seqfeature_id
 
         description = ''
         try:
@@ -39,22 +101,23 @@ def extract_feature(dbrec, output_format, fp):
         except KeyError:
             pass
 
-        feat_extract = SeqRecord(feat_extract, id=seqid, description=description)
+        feat_extract = SeqRecord(feat_extract, id=str(seqid), description=description)
         SeqIO.write(feat_extract, fp, 'fasta')
 
 def main(args):
     server = BioSeqDatabase.open_database(driver=args.driver, db=args.database, user=args.user, host=args.host, passwd=args.password)
 
+    rows = None
     try:
         ncbi_tax = int(args.taxid)
         taxon_id_lookup_sql = "SELECT bioentry_id, taxon_id FROM bioentry WHERE taxon_id IN "\
                 "(SELECT DISTINCT include.taxon_id FROM taxon "\
                 "INNER JOIN taxon as include ON (include.left_value "\
                 "BETWEEN taxon.left_value AND taxon.right_value) "\
-                "WHERE taxon.ncbi_taxon_id  = %s) AND include.right_value = include.left_value + 1)"
+                "WHERE taxon.ncbi_taxon_id  = %s AND include.right_value = include.left_value + 1)"
 
         rows = server.adaptor.execute_and_fetchall(taxon_id_lookup_sql, (ncbi_tax,))
-    except:
+    except TypeError:
         taxon_name_lookup_sql = "SELECT bioentry_id, taxon_id FROM bioentry WHERE taxon_id IN "\
                 "(SELECT DISTINCT include.taxon_id FROM taxon "\
                 "INNER JOIN taxon as include ON (include.left_value "\
@@ -103,17 +166,21 @@ def main(args):
                     SeqIO.write(dbid_s, fp, args.output_format)
 
     else:
-        for dbname in server:
-            db = server[dbname]
-            for dbid, taxid in dbids.items():
-                try:
-                    dbrec = db[dbid]
-                    if 'feat' in args.output_format:
-                        extract_feature(dbrec, args.output_format, sys.stdout)
-                    else:
-                        SeqIO.write(dbrec, sys.stdout, args.output_format)
-                except KeyError:
-                    pass
+        if args.output_format == 'feat-prot':
+            extract_feature_sql(server, dbids.keys(),type=['CDS'],translate=True )
+        else:
+            extract_feature_sql(server, dbids.keys() )
+        #for dbname in server:
+        #    db = server[dbname]
+        #    for dbid, taxid in dbids.items():
+        #        try:
+        #            dbrec = db[dbid]
+        #            if 'feat' in args.output_format:
+        #                extract_feature(dbrec, args.output_format, sys.stdout)
+        #            else:
+        #                SeqIO.write(dbrec, sys.stdout, args.output_format)
+        #        except KeyError:
+        #            pass
 
 
 if __name__ == "__main__":
