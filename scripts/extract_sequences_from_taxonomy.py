@@ -117,14 +117,13 @@ def main(args):
                 "WHERE taxon.ncbi_taxon_id  = %s AND include.right_value = include.left_value + 1)"
 
         rows = server.adaptor.execute_and_fetchall(taxon_id_lookup_sql, (ncbi_tax,))
-    except TypeError:
+    except ValueError:
         taxon_name_lookup_sql = "SELECT bioentry_id, taxon_id FROM bioentry WHERE taxon_id IN "\
                 "(SELECT DISTINCT include.taxon_id FROM taxon "\
                 "INNER JOIN taxon as include ON (include.left_value "\
                 "BETWEEN taxon.left_value AND taxon.right_value) "\
                 "WHERE taxon.taxon_id IN (SELECT taxon_id FROM taxon_name "\
                 "WHERE name like %s) AND include.right_value = include.left_value + 1)"
-
         rows = server.adaptor.execute_and_fetchall(taxon_name_lookup_sql, (args.taxid,))
     finally:
         dbids = dict(rows)
