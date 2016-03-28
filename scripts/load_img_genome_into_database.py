@@ -3,6 +3,8 @@ import sys
 from os.path import split as path_split, join as path_join, isfile
 import argparse
 import sqlite3
+import re
+from tempfile import TemporaryFile
 from BioSQL import BioSeqDatabase
 from Bio import SeqIO
 from Bio import Entrez
@@ -56,6 +58,41 @@ def add_gene_dbxref(xref_file, kegg_file):
 
     return ret
 
+def fix_img_gff_errors(gff_file):
+    ''' GFF files in the IMG directory can contain errors. This fixes them and returns a file handle to the fixed file
+
+        transforms literal semicolon (;) characters in field 9 to their proper percent encoding (%3B)
+        fixes the CRISPR lines
+    '''
+    new_gff = TemporaryFile()
+    with open(gff_file) as fp:
+        for ln, line in enumerate(fp):
+            if line[0] == '#':
+                new_gff.write(line)
+            else:
+                fields = line.split('\t')
+                if fields[2] == 'CRISPR':
+                    fields[5] = '.'
+                    fields[6] = '?'
+                    fields[7] = '.'
+                else:
+                    attributes = fields[8]
+                    attribute_kv = attributes.split(';')
+                    new_attributes = []
+                    for i in range(len(attribute_kv)):
+                        if ',' in attribute_kv[i]:
+                            attribute_kv[i] = re.sub(',', '%2C', attribute_kv[i])
+
+                        if '=' not in attribute_kv[i]:
+                            new_attributes[-1] += '%3B' + attribute_kv[i]
+                        else:
+                            new_attributes.append(attribute_kv[i])
+                    fields[8] = ';'.join(new_attributes)
+
+                new_gff.write('\t'.join(fields))
+
+    new_gff.seek(0)
+    return new_gff
 
 def load_img(db, directory, fetch_taxonomy=False, taxid=None):
 
@@ -68,6 +105,7 @@ def load_img(db, directory, fetch_taxonomy=False, taxid=None):
     kegg_file = path_join(directory, bas + '.ko.tab.txt')
     xref_file = path_join(directory, bas + '.xref.tab.txt')
 
+    gff_file = fix_img_gff_errors(gff_file)
 
     xref_dict = None
     if isfile(kegg_file):
