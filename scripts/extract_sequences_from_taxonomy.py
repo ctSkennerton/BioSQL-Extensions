@@ -31,8 +31,9 @@ def extract_feature_sql(server, dbids, type=['CDS', 'rRNA', 'tRNA'], qualifier=[
                 generate_placeholders(len(chunk))),\
                 tuple(chunk)))
 
-        feat_select_simple_sql = 'SELECT seqfeature_id, bioentry_id FROM seqfeature WHERE bioentry_id IN ({})'.format(generate_placeholders(len(chunk)))
-        features =  dict(server.adaptor.execute_and_fetchall(feat_select_simple_sql, tuple(chunk)))
+        feat_select_simple_sql = 'SELECT seqfeature_id, bioentry_id FROM seqfeature WHERE bioentry_id IN ({}) '.format(generate_placeholders(len(chunk)))
+        term_qualifier_sql = 'AND type_term_id in (SELECT term_id FROM term WHERE name in ({}))'.format(generate_placeholders(len(type)))
+        features =  dict(server.adaptor.execute_and_fetchall(feat_select_simple_sql + term_qualifier_sql, tuple(chunk + type)))
         for feat_chunk in chunks(features.keys(), 900):
 
             location_select_sql = 'SELECT seqfeature_id, strand, start_pos, end_pos FROM location WHERE seqfeature_id IN ({})'.format(generate_placeholders(len(feat_chunk)))
@@ -46,10 +47,10 @@ def extract_feature_sql(server, dbids, type=['CDS', 'rRNA', 'tRNA'], qualifier=[
                     qv[seqfeature_id][name] = value
 
             for seqfeature_id, strand, start_pos, end_pos in server.adaptor.execute_and_fetchall(location_select_sql, tuple(feat_chunk)):
-                name = ''
+                name = str(seqfeature_id)
                 for q in qualifier:
                     try:
-                        name += qv[seqfeature_id][q] + ' '
+                        name += ' ' + qv[seqfeature_id][q]
 
                     except KeyError:
                         pass
@@ -59,7 +60,6 @@ def extract_feature_sql(server, dbids, type=['CDS', 'rRNA', 'tRNA'], qualifier=[
 
                 if translate:
                     seq = bio_translate(seq)
-                name += str(seqfeature_id)
                 try:
                     name += ' ' + qv[seqfeature_id]['product']
                 except KeyError:
@@ -166,7 +166,7 @@ def main(args):
 
     else:
         if args.output_format == 'feat-prot':
-            extract_feature_sql(server, dbids.keys(),type=['CDS'],translate=True )
+            extract_feature_sql(server, dbids.keys(),type=['CDS'], translate=True )
         else:
             extract_feature_sql(server, dbids.keys() )
         #for dbname in server:
