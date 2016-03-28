@@ -5,18 +5,34 @@ import sqlite3
 from BioSQL import BioSeqDatabase
 from BioSQL import Loader
 
+def parse_input(infile):
+    mapping = {}
+    with open(infile) as fp:
+        header = next(fp)
+        protein, term_name = header.rstrip().split()
+        for line in fp:
+            try:
+                protein, kegg = line.rstrip().split()
+                mapping[protein] = kegg
+            except:
+                pass
+
+    return term_name, mapping
+
 def parse_kegg(infile):
     mapping = {}
     for line in infile:
         try:
-            protein, kegg = line.rstrip().split()
-            mapping[protein] = kegg
+            protein, kegg_id = line.rstrip().split()
+            if 'ko:' not in kegg_id:
+                kegg_id = 'ko:' + kegg_id
+            mapping[protein] = kegg_id
         except:
             pass
 
     return mapping
 
-def add_kegg_annotation(db, mapping, term_key, isSeqfeatureAlready=False):
+def add_annotation(db, mapping, term_key, qualifier_term_name, isSeqfeatureAlready=False):
     # this may be a little tricky depending on how the database is set up
     # since a bioentry is equivelent to a genbank file but genbank files could
     # be created from a whole chromosome or from an individual protein.
@@ -30,7 +46,7 @@ def add_kegg_annotation(db, mapping, term_key, isSeqfeatureAlready=False):
         cds_term_id = db.adaptor.execute_and_fetchall('select term_id from term where name = \'CDS\'')[0][0]
         locus_tag_term_id = db.adaptor.execute_and_fetchall('select term_id from term where name = %s', (term_key,))[0][0]
 
-    for protein, kegg_id in mapping.items():
+    for protein, value in mapping.items():
         # Start by looking for bioentries that have the name
         if not isSeqfeatureAlready:
             try:
@@ -54,12 +70,10 @@ def add_kegg_annotation(db, mapping, term_key, isSeqfeatureAlready=False):
                     #raise e
 
         else:
-            seqfeature_id = protein
+            seqfeature_id = int(protein)
         #print("loading ",kegg_id," into ",protein,"(",seqfeature_id,")")
         # now add in our qualifier and value onto that seqfeature
-        if 'ko:' not in kegg_id:
-            kegg_id = 'ko:' + kegg_id
-        db_loader._load_seqfeature_qualifiers({'db_xref': [kegg_id]}, seqfeature_id)
+        db_loader._load_seqfeature_qualifiers({qualifier_term_name: [value]}, seqfeature_id)
 
 if __name__ == '__main__':
     import argparse
@@ -72,7 +86,7 @@ if __name__ == '__main__':
     parser.add_argument('-u', '--user', help='database user name')
     parser.add_argument('-P','--password', help='database password for user')
     parser.add_argument('-H', '--host', help='host to connect to', default='localhost')
-    #parser.add_argument('-i', '--input', help='provide a two column text file, tab delimited, where the first column is the name of the sequence feature and the second column is the value of the annotation that you want to add')
+    parser.add_argument('-i', '--input', help='provide a two column text file, tab delimited, where the first column is the name of the sequence feature and the second column is the value of the annotation that you want to add. The first line must be a header line. The second column of the header line will be the seqfeature qualifier name that is added to the protein')
     parser.add_argument('-k', '--kegg', type=argparse.FileType(),
         help='input file containing a two column, tab delimited, file where '\
         'the first column is the name of a protein stored in the database '\
@@ -81,9 +95,9 @@ if __name__ == '__main__':
             'This will be the qualifier for the proteins from the genbank or gff file used when loading the sequence in. '\
             'Common options would be "ID", "locus_tag"', default='locus_tag')
     parser.add_argument('-s', '--seqfeature', help='The first column of the input file is the seqfeature id used by the database', action='store_true', default=False)
+
     args = parser.parse_args()
 
-    mapping = parse_kegg(args.kegg)
     server = BioSeqDatabase.open_database(driver=args.driver,
             db=args.database,
             user=args.user,
@@ -91,6 +105,15 @@ if __name__ == '__main__':
             passwd=args.password)
 
     db = server[args.dbname]
-    add_kegg_annotation(db, mapping, args.term, args.seqfeature)
+
+    if args.kegg is not None:
+        mapping = parse_kegg(args.kegg)
+        add_annotation(db, mapping, args.term, 'db_xref', args.seqfeature)
+
+    if args.input is not None:
+        mapping = parse_input(args.input)
+        term_name, mapping = parse_input(args.input)
+        add_annotation(db, mapping, args.term, term_name, args.seqfeature)
+
     server.commit()
 
