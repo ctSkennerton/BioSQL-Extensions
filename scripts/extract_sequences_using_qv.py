@@ -69,21 +69,25 @@ def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qu
             print(">{}\n{}".format(name, seq))
 
 
-def get_seqfeature_by_qv(server, qualifier, value):
+def get_seqfeature_by_qv(server, qualifier, value, biodb=None):
     ''' find all seqfeatures that have the given value for the qualifier
         returns a list of seqfeature_id
     '''
-    sql = "SELECT seqfeature_id FROM seqfeature_qualifier_value WHERE term_id = (SELECT term_id FROM term WHERE name = %s) AND value = %s"
-    return server.adaptor.execute_and_fetch_col0(sql, (qualifier, value))
+    sql = "SELECT qv.seqfeature_id FROM seqfeature_qualifier_value qv join seqfeature s using(seqfeature_id) join bioentry b using(bioentry_id) join biodatabase bd using(biodatabase_id) WHERE term_id = (SELECT term_id FROM term WHERE name = %s AND ontology_id = (SELECT ontology_id from ontology WHERE name = 'Annotation Tags')) AND value = %s"
+    if biodb:
+        sql += " AND bd.name = %s"
+        return server.adaptor.execute_and_fetchall(sql, (qualifier, value, biodb))
+    else:
+        return server.adaptor.execute_and_fetchall(sql, (qualifier, value))
 
 def main(args):
     server = BioSeqDatabase.open_database(driver=args.driver, db=args.database, user=args.user, host=args.host, passwd=args.password)
 
-    seqfeature_ids = get_seqfeature_by_qv(server, args.qualifier, args.value)
+    seqfeature_ids = get_seqfeature_by_qv(server, args.qualifier, args.value, args.database_name)
 
     if args.output_format == 'feat-prot':
-        extract_feature_sql(server,seqfeature_ids, type=['CDS'], translate=True )
-    else:
+        extract_feature_sql(server, seqfeature_ids, type=['CDS'], translate=True )
+    elif args.output_format == 'feat-nucl':
         extract_feature_sql(server, seqfeature_ids )
     #for dbname in server:
     #    db = server[dbname]
@@ -101,13 +105,13 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--database', help='name of premade biosql database')
-    #parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default='metagenomic_database')
+    parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default='metagenomic_database')
     parser.add_argument('-r', '--driver', help='Python database driver to use (must be installed separately)', choices=["MySQLdb", "psycopg2", "sqlite3"], default='psycopg2')
     parser.add_argument('-p', '--port', help='post to connect to on the host')
     parser.add_argument('-u', '--user', help='database user name')
     parser.add_argument('-P', '--password', help='database password for user')
     parser.add_argument('-H', '--host', help='host to connect to', default='localhost')
-    parser.add_argument('-o', '--output_format', help='output format of the selected sequences', choices=['fasta', 'gb', 'feat-prot', 'feat-nucl'], default='fasta')
+    parser.add_argument('-o', '--output_format', help='output format of the selected sequences', choices=['fasta', 'gb', 'gff', 'feat-prot', 'feat-nucl'], default='fasta')
     parser.add_argument('qualifier', help='name of the qualifier', default=None)
     parser.add_argument('value', help='value to match on' )
     args = parser.parse_args()
