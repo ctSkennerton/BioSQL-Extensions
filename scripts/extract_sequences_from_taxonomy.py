@@ -107,54 +107,59 @@ def extract_feature(dbrec, output_format, fp, wanted_types=['CDS','rRNA', 'tRNA'
 def main(args):
     server = BioSeqDatabase.open_database(driver=args.driver, db=args.database, user=args.user, host=args.host, passwd=args.password)
 
-    rows = None
+    tax_name = False
     try:
         ncbi_tax = int(args.taxid)
-        taxon_id_lookup_sql = "SELECT bioentry_id, taxon_id FROM bioentry WHERE taxon_id IN "\
+    except ValueError:
+        tax_name = True
+
+    if not tax_name:
+        taxon_id_lookup_sql = "SELECT bioentry_id, taxon_id, biodatabase.name FROM bioentry JOIN "\
+                "biodatabase USING(biodatabase_id) WHERE taxon_id IN "\
                 "(SELECT DISTINCT include.taxon_id FROM taxon "\
                 "INNER JOIN taxon as include ON (include.left_value "\
                 "BETWEEN taxon.left_value AND taxon.right_value) "\
                 "WHERE taxon.ncbi_taxon_id  = %s AND include.right_value = include.left_value + 1)"
 
         rows = server.adaptor.execute_and_fetchall(taxon_id_lookup_sql, (ncbi_tax,))
-    except ValueError:
-        taxon_name_lookup_sql = "SELECT bioentry_id, taxon_id FROM bioentry WHERE taxon_id IN "\
+    else:
+        taxon_name_lookup_sql = "SELECT bioentry_id, taxon_id, biodatabase.name FROM bioentry JOIN "\
+                "biodatabase USING(biodatabase_id) WHERE taxon_id IN "\
                 "(SELECT DISTINCT include.taxon_id FROM taxon "\
                 "INNER JOIN taxon as include ON (include.left_value "\
                 "BETWEEN taxon.left_value AND taxon.right_value) "\
                 "WHERE taxon.taxon_id IN (SELECT taxon_id FROM taxon_name "\
                 "WHERE name like %s) AND include.right_value = include.left_value + 1)"
         rows = server.adaptor.execute_and_fetchall(taxon_name_lookup_sql, (args.taxid,))
-    finally:
-        dbids = dict(rows)
-        files = {}
-        taxid_to_dbids = {}
-        if args.split_species:
-            taxon_file_mapping = {}
-            for k, v in dbids.items():
-                tname = server.adaptor.execute_and_fetch_col0("SELECT name from taxon_name where taxon_id = %s and name_class = %s", (v,'scientific name'))[0]
-                tname = tname.replace(' ', '_')
-                if args.output_format == 'gb':
-                    tname += '.gb'
-                elif args.output_format == 'feat-prot':
-                    tname += '.faa'
-                else:
-                    tname += '.fna'
-                files[v] = tname
-                taxid_to_dbids.setdefault(v, []).append(k)
+
+    dbids = {}
+    for row in rows:
+        dbids[(row[0], row[2])] = row[1]
+    files = {}
+    taxid_to_dbids = {}
+    if args.split_species:
+        taxon_file_mapping = {}
+        for k, v in dbids.items():
+            tname = server.adaptor.execute_and_fetch_col0("SELECT name from taxon_name where taxon_id = %s and name_class = %s", (v,'scientific name'))[0]
+            tname = tname.replace(' ', '_')
+            if args.output_format == 'gb':
+                tname += '.gb'
+            elif args.output_format == 'feat-prot':
+                tname += '.faa'
+            else:
+                tname += '.fna'
+            files[v] = tname
+            taxid_to_dbids.setdefault(v, []).append(k)
 
 
     if args.split_species:
         # got to save all of the records before printing them out
         outdata = {}
-        for db in server.values():
-            for taxid, dbid_list in taxid_to_dbids.items():
-                for dbid in dbid_list:
-                    try:
-                        seq_rec = db[dbid]
-                        outdata.setdefault(taxid, []).append(seq_rec)
-                    except KeyError:
-                        pass
+        for taxid, dbid_list in taxid_to_dbids.items():
+            for dbid, dbname in dbid_list:
+                db = server[dbname]
+                seq_rec = db[dbid]
+                outdata.setdefault(taxid, []).append(seq_rec)
 
         for taxid, dbrecs in outdata.items():
             with open(files[taxid], 'w') as fp:
@@ -166,25 +171,22 @@ def main(args):
 
     else:
         if args.output_format == 'feat-prot':
-            extract_feature_sql(server, dbids.keys(),type=['CDS'], translate=True )
+            extract_feature_sql(server, [x[0] for x in dbids.keys()],type=['CDS'], translate=True )
+        elif args.output_format == 'feat-nucl':
+            extract_feature_sql(server, [x[0] for x in dbids.keys()])
         else:
-            extract_feature_sql(server, dbids.keys() )
-        #for dbname in server:
-        #    db = server[dbname]
-        #    for dbid, taxid in dbids.items():
-        #        try:
-        #            dbrec = db[dbid]
-        #            if 'feat' in args.output_format:
-        #                extract_feature(dbrec, args.output_format, sys.stdout)
-        #            else:
-        #                SeqIO.write(dbrec, sys.stdout, args.output_format)
-        #        except KeyError:
-        #            pass
+            for (dbid, dbname), taxid in dbids.items():
+                db = server[dbname]
+                try:
+                    dbrec = db[dbid]
+                    SeqIO.write(dbrec, sys.stdout, args.output_format)
+                except KeyError:
+                    pass
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--database', help='name of premade biosql database')
+    parser.add_argument('database', help='name of biosql database')
     #parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default='metagenomic_database')
     parser.add_argument('-r', '--driver', help='Python database driver to use (must be installed separately)', choices=["MySQLdb", "psycopg2", "sqlite3"], default='psycopg2')
     parser.add_argument('-p', '--port', help='post to connect to on the host')
