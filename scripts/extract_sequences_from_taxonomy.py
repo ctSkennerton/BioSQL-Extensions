@@ -3,6 +3,7 @@ from __future__ import print_function
 import sys
 import argparse
 import sqlite3
+from getpass import getpass, getuser
 from BioSQL import BioSeqDatabase
 from BioSQL.BioSeq import DBSeqRecord
 from Bio import SeqIO
@@ -185,17 +186,24 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Extract sequences that are from either an NCBI taxonomy ID or the complete name of a taxonomic rank",
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('database', help='name of biosql database')
     #parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default='metagenomic_database')
     parser.add_argument('-r', '--driver', help='Python database driver to use (must be installed separately)', choices=["MySQLdb", "psycopg2", "sqlite3"], default='psycopg2')
-    parser.add_argument('-p', '--port', help='post to connect to on the host')
-    parser.add_argument('-u', '--user', help='database user name')
-    parser.add_argument('-P', '--password', help='database password for user')
-    parser.add_argument('-H', '--host', help='host to connect to', default='localhost')
+    parser.add_argument('-p', '--port', help='post to connect to on the host',
+            default=5432)
+    parser.add_argument('-u', '--user', help='database user name',
+            default=getuser())
+    parser.add_argument('-P','--password', help='database password for user')
+    parser.add_argument('-H', '--host', help='host to connect to',
+            default='localhost')
     parser.add_argument('-o', '--output_format', help='output format of the selected sequences', choices=['fasta', 'gb', 'feat-prot', 'feat-nucl'], default='fasta')
     parser.add_argument('taxid', help='supply a ncbi taxonomy id that will be extracted. If an integer is supplied it will be interpreted as an NCBI taxonomy id; otherwise it will be interpreted as part of a taxonomy name (e.g. Proteobacteria)', default=None)
     parser.add_argument('-s', '--split_species', help='when there are multiple species to be returned, split them into separate files, based on their name, instead of printing to stdout', default=False, action='store_true')
     args = parser.parse_args()
+    if args.password is None:
+        args.password = getpass("Please enter the password for user " + \
+                args.user + " on database " + args.database)
     main(args)
 
