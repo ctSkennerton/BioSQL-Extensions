@@ -6,6 +6,7 @@ from BioSQL import BioSeqDatabase
 from BioSQL import Loader
 from Bio import SeqIO
 from Bio import Entrez
+from common import standard_options
 Entrez.email = 'c.skennerton@gmail.com'
 
 def add_taxid(inIter, taxid):
@@ -105,7 +106,7 @@ def add_new_taxonomy(server, new_taxons, parent_ncbi_tax_id):
         except AssertionError:
             # the given ncbi taxonomy id isn't currently in the database
             # download it using the Entrez API
-            db_loader = Loader.DatabaseLoader(server.adaptor, server.values()[0], True)
+            db_loader = Loader.DatabaseLoader(server.adaptor, list(server.values())[0], True)
             handle = Entrez.efetch( db="taxonomy", id=str(parent_ncbi_tax_id), retmode="XML")
             taxon_record = Entrez.read(handle)
             taxon_record[0]['LineageEx'].append(
@@ -136,30 +137,35 @@ def main(args):
 
     taxon_id = add_new_taxonomy(server, args.new_taxons, args.taxid)
 
+    gen = []
     if args.fasta is not None:
-        gen = SeqIO.parse(args.fasta, 'fasta')
+        for rec in SeqIO.parse(args.fasta, 'fasta'):
+            gen.append(rec.name)
     elif args.genbank is not None:
-        gen = SeqIO.parse(args.genbank, 'genbank')
+        for rec in SeqIO.parse(args.genbank, 'genbank'):
+            gen.append(rec.name)
+    elif args.input is not None:
+        with open(args.input) as fp:
+            for line in fp:
+                gen.append(line.rstrip())
 
     for rec in gen:
-        server.adaptor.execute('update bioentry set taxon_id = %s where bioentry_id = %s',(taxon_id, db.adaptor.fetch_seqid_by_display_id(db.dbid, rec.name)))
+        server.adaptor.execute('update bioentry set taxon_id = %s where bioentry_id = %s',(taxon_id, db.adaptor.fetch_seqid_by_display_id(db.dbid, rec)))
     server.commit()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--database', help='name of premade biosql database')
+    parser = standard_options()
     parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default='metagenomic_database')
-    parser.add_argument('-r', '--driver', help='Python database driver to use (must be installed separately)', choices=["MySQLdb", "psycopg2", "sqlite3"], default='psycopg2')
-    parser.add_argument('-p', '--port', help='post to connect to on the host')
-    parser.add_argument('-u', '--user', help='database user name')
-    parser.add_argument('-P','--password', help='database password for user')
-    parser.add_argument('-H', '--host', help='host to connect to', default='localhost')
     parser.add_argument('-f', '--fasta', help='fasta file to add into the database')
     parser.add_argument('-G', '--genbank', help='genbank file to add into the database')
-    #parser.add_argument('-t', '--lookup-taxonomy', dest='tax_lookup', help='access taxonomy information on NCBI servers', action="store_true", default=False)
+    parser.add_argument('-i', '--input', help='file containing sequence names, one per line')
     parser.add_argument('-T', '--taxid', help='supply a ncbi taxonomy id that will be applied to all sequences in the file, or if new_taxons are supplied on the command line this taxonomy ID will be used as the parent taxonomy for the novel lineages', required=True, default=None)
     parser.add_argument('new_taxons', nargs="*", help='specify novel taxonomies not currenly in the NCBI database. each taxon specified on the command line should take the form of <taxon_name>:<taxon_rank>. Check the taxon table in the database for the appropriate values for the taxon_rank. e.g. ANME-2ab:family ANME-2b:genus ANME-hr1:species')
     args = parser.parse_args()
+    if args.password is None:
+        args.password = getpass("Please enter the password for user " + \
+                args.user + " on database " + args.database)
+
     main(args)
 

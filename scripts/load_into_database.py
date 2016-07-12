@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 import sys
-import argparse
-import sqlite3
 from BioSQL import BioSeqDatabase
 from Bio import SeqIO
 from Bio import Entrez
+from common import standard_options
+from getpass import getpass
+
 Entrez.email = 'c.skennerton@gmail.com'
 
 def add_taxid(inIter, taxid):
@@ -46,19 +47,15 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--database', help='name of premade biosql database')
-    parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default='metagenomic_database')
-    parser.add_argument('-r', '--driver', help='Python database driver to use (must be installed separately)', choices=["MySQLdb", "psycopg2", "sqlite3"], default='psycopg2')
-    parser.add_argument('-p', '--port', help='post to connect to on the host')
-    parser.add_argument('-u', '--user', help='database user name')
-    parser.add_argument('-P','--password', help='database password for user')
-    parser.add_argument('-H', '--host', help='host to connect to', default='localhost')
+    parser = standard_options()
+    parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', required=True)
     parser.add_argument('-f', '--fasta', help='fasta file to add into the database')
     parser.add_argument('-g', '--gff', help='gff file of reatures to add into the database. Must be paired with a fasta file')
     parser.add_argument('-G', '--genbank', help='genbank file to add into the database')
     parser.add_argument('-t', '--lookup-taxonomy', dest='tax_lookup', help='access taxonomy information on NCBI servers', action="store_true", default=False)
     parser.add_argument('-T', '--taxid', help='supply a ncbi taxonomy id that will be applied to all sequences in the file', default=None)
     args = parser.parse_args()
+    if args.password is None:
+        args.password = getpass()
     main(args)
 
