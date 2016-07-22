@@ -1,74 +1,11 @@
 #!/usr/bin/env python
 from __future__ import print_function
 import sys
-import argparse
-import sqlite3
 from getpass import getpass, getuser
 from BioSQL import BioSeqDatabase
 from BioSQL.BioSeq import DBSeqRecord
 from Bio import SeqIO
-from Bio.SeqRecord import SeqRecord
-from Bio.Seq import reverse_complement, translate as bio_translate
-
-def generate_placeholders(l):
-    placeholder= ['%s'] # use ? For SQLite. See DBAPI paramstyle.
-    return ', '.join(placeholder * l)
-
-
-def chunks(l, n):
-    """ Yield successive n-sized chunks from l.
-    """
-    for i in xrange(0, len(l), n):
-        yield l[i:i+n]
-
-def extract_feature_sql(server, dbids, type=['CDS', 'rRNA', 'tRNA'], qualifier=['ID','locus_tag'], translate=False):
-    """raw sql extraction of fasta seqfeatures
-    """
-    for chunk in chunks(dbids, 900):
-
-
-        seqs = dict(server.adaptor.execute_and_fetchall(\
-                'SELECT bioentry_id, seq FROM biosequence WHERE bioentry_id IN ({})'.format(\
-                generate_placeholders(len(chunk))),\
-                tuple(chunk)))
-
-        feat_select_simple_sql = 'SELECT seqfeature_id, bioentry_id FROM seqfeature WHERE bioentry_id IN ({}) '.format(generate_placeholders(len(chunk)))
-        term_qualifier_sql = 'AND type_term_id in (SELECT term_id FROM term WHERE name in ({}))'.format(generate_placeholders(len(type)))
-        features =  dict(server.adaptor.execute_and_fetchall(feat_select_simple_sql + term_qualifier_sql, tuple(chunk + type)))
-        for feat_chunk in chunks(features.keys(), 900):
-
-            location_select_sql = 'SELECT seqfeature_id, strand, start_pos, end_pos FROM location WHERE seqfeature_id IN ({})'.format(generate_placeholders(len(feat_chunk)))
-            qual_select_sql = 'SELECT seqfeature_id, name, value FROM seqfeature_qualifier_value qv, term t WHERE seqfeature_id IN ({}) AND t.term_id = qv.term_id'.format(generate_placeholders(len(feat_chunk)))
-            qv = {}
-            for seqfeature_id, name, value in server.adaptor.execute_and_fetchall(qual_select_sql, tuple(feat_chunk)):
-                try:
-                    qv[seqfeature_id][name] = value
-                except KeyError:
-                    qv[seqfeature_id] = {}
-                    qv[seqfeature_id][name] = value
-
-            for seqfeature_id, strand, start_pos, end_pos in server.adaptor.execute_and_fetchall(location_select_sql, tuple(feat_chunk)):
-                name = str(seqfeature_id)
-                for q in qualifier:
-                    try:
-                        name += ' ' + qv[seqfeature_id][q]
-
-                    except KeyError:
-                        pass
-                seq = seqs[features[seqfeature_id]][start_pos-1:end_pos]
-                if strand == -1:
-                    seq = reverse_complement(seq)
-
-                if translate:
-                    seq = bio_translate(seq)
-                try:
-                    name += ' ' + qv[seqfeature_id]['product']
-                except KeyError:
-                    pass
-
-                print(">{}\n{}".format(name, seq))
-
-
+from common import generate_placeholders, chunks, extract_feature_sql, standard_options, get_seqfeature_ids_for_bioseqs
 
 def extract_feature(dbrec, output_format, fp, wanted_types=['CDS','rRNA', 'tRNA'], id_tag=None):
 
@@ -115,6 +52,7 @@ def main(args):
         tax_name = True
 
     if not tax_name:
+        print("interpreting as an NCBI taxon ID...", file=sys.stderr)
         taxon_id_lookup_sql = "SELECT bioentry_id, taxon_id, biodatabase.name FROM bioentry JOIN "\
                 "biodatabase USING(biodatabase_id) WHERE taxon_id IN "\
                 "(SELECT DISTINCT include.taxon_id FROM taxon "\
@@ -124,6 +62,7 @@ def main(args):
 
         rows = server.adaptor.execute_and_fetchall(taxon_id_lookup_sql, (ncbi_tax,))
     else:
+        print("interpreting as a taxon name...", file=sys.stderr)
         taxon_name_lookup_sql = "SELECT bioentry_id, taxon_id, biodatabase.name FROM bioentry JOIN "\
                 "biodatabase USING(biodatabase_id) WHERE taxon_id IN "\
                 "(SELECT DISTINCT include.taxon_id FROM taxon "\
@@ -172,9 +111,9 @@ def main(args):
 
     else:
         if args.output_format == 'feat-prot':
-            extract_feature_sql(server, [x[0] for x in dbids.keys()],type=['CDS'], translate=True )
+            extract_feature_sql(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]),type=['CDS'], translate=True )
         elif args.output_format == 'feat-nucl':
-            extract_feature_sql(server, [x[0] for x in dbids.keys()])
+            extract_feature_sql(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]))
         else:
             for (dbid, dbname), taxid in dbids.items():
                 db = server[dbname]
@@ -186,18 +125,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Extract sequences that are from either an NCBI taxonomy ID or the complete name of a taxonomic rank",
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('database', help='name of biosql database')
-    #parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default='metagenomic_database')
-    parser.add_argument('-r', '--driver', help='Python database driver to use (must be installed separately)', choices=["MySQLdb", "psycopg2", "sqlite3"], default='psycopg2')
-    parser.add_argument('-p', '--port', help='post to connect to on the host',
-            default=5432)
-    parser.add_argument('-u', '--user', help='database user name',
-            default=getuser())
-    parser.add_argument('-P','--password', help='database password for user')
-    parser.add_argument('-H', '--host', help='host to connect to',
-            default='localhost')
+    parser = standard_options()
     parser.add_argument('-o', '--output_format', help='output format of the selected sequences', choices=['fasta', 'gb', 'feat-prot', 'feat-nucl'], default='fasta')
     parser.add_argument('taxid', help='supply a ncbi taxonomy id that will be extracted. If an integer is supplied it will be interpreted as an NCBI taxonomy id; otherwise it will be interpreted as part of a taxonomy name (e.g. Proteobacteria)', default=None)
     parser.add_argument('-s', '--split_species', help='when there are multiple species to be returned, split them into separate files, based on their name, instead of printing to stdout', default=False, action='store_true')
