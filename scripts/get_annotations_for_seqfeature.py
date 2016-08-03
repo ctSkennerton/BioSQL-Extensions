@@ -20,8 +20,18 @@ def chunks(l, n):
 def dbxref_dict(server, seqfeature_ids):
     db_qv = {}
     for feat_chunk in chunks(seqfeature_ids, 900):
-        sql = "SELECT s.seqfeature_id, d.dbname || ':' || d.accession AS kegg_id, t.name, dqv.value FROM seqfeature_dbxref s JOIN dbxref d USING(dbxref_id) JOIN dbxref_qualifier_value dqv USING(dbxref_id) JOIN term t USING(term_id) WHERE s.seqfeature_id IN ({})".format(generate_placeholders(len(feat_chunk)))
+        #sql = "SELECT s.seqfeature_id, d.dbname || ':' || d.accession AS kegg_id "\
+        #        "FROM seqfeature_dbxref s "\
+        #        "JOIN dbxref d USING(dbxref_id) "\
+        #        "WHERE s.seqfeature_id IN ({})".format(generate_placeholders(len(feat_chunk)))
+        sql = "SELECT s.seqfeature_id, d.dbname || ':' || d.accession AS kegg_id, t.name, dqv.value "\
+                "FROM seqfeature_dbxref s "\
+                "JOIN dbxref d USING(dbxref_id) "\
+                "LEFT JOIN dbxref_qualifier_value dqv USING(dbxref_id) "\
+                "LEFT JOIN term t USING(term_id) "\
+                "WHERE s.seqfeature_id IN ({})".format(generate_placeholders(len(feat_chunk)))
         for seqfeature_id, dbxref, name, value in server.adaptor.execute_and_fetchall(sql, tuple(feat_chunk)):
+        #for seqfeature_id, dbxref in server.adaptor.execute_and_fetchall(sql, tuple(feat_chunk)):
             try:
                 db_qv[seqfeature_id]['kegg_id'] = dbxref
             except KeyError:
