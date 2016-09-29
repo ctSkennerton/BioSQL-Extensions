@@ -16,11 +16,11 @@ def get_organism_name(server, bioid):
             and name_class = 'scientific name'"
     return server.adaptor.execute_and_fetchall(sql, (bioid,))[0][0]
 
-def standard_options():
+def standard_options(**kwargs):
     import argparse
     from getpass import getuser
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-d', '--database', help='name of premade biosql database')
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, **kwargs)
+    parser.add_argument('-d', '--database', help='name of premade biosql database', required=True)
     parser.add_argument('-r', '--driver', help='Python database driver to use (must be installed separately)', choices=["MySQLdb", "psycopg2", "sqlite3"], default='psycopg2')
     parser.add_argument('-p', '--port', help='post to connect to on the host',
             default=5432)
@@ -100,16 +100,15 @@ def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qu
     """
     for chunk in chunks(seqfeature_ids, 900):
         sql = "SELECT f.seqfeature_id AS gid, \
-                    fl.strand,\
-                    substring(s.seq, fl.start_pos, (fl.end_pos - fl.start_pos)+1) AS subseq\
-               FROM seqfeature f,\
-                    location fl,\
-                    biosequence s\
-               WHERE f.seqfeature_id IN ({}) AND\
-                     fl.seqfeature_id = f.seqfeature_id AND\
-                     f.bioentry_id = s.bioentry_id".format(generate_placeholders(len(chunk)))
+                      fl.strand,\
+                      substring(s.seq, fl.start_pos, (fl.end_pos - fl.start_pos)+1) AS subseq\
+               FROM   seqfeature f \
+               JOIN   term t ON f.type_term_id=t.term_id \
+               JOIN   location fl USING(seqfeature_id) \
+               JOIN   biosequence s USING(bioentry_id)\
+               WHERE  t.name IN ({}) AND f.seqfeature_id IN ({})".format(generate_placeholders(len(type)), generate_placeholders(len(chunk)))
 
-        features = server.adaptor.execute_and_fetchall(sql, tuple(chunk) )
+        features = server.adaptor.execute_and_fetchall(sql, tuple(type + chunk) )
         results = {}
         for sfid, strand, seq in features:
             results[sfid] = (strand, seq)
