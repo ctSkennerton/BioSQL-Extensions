@@ -38,7 +38,8 @@ def dbxref_dict(server, seqfeature_ids):
                 db_qv[seqfeature_id] = {}
                 db_qv[seqfeature_id]['kegg_id'] = dbxref
 
-            db_qv[seqfeature_id][name] = value
+            if name:
+                db_qv[seqfeature_id][name] = value
     return db_qv
 
 
@@ -60,6 +61,8 @@ def qv_dict(server, seqfeature_ids):
                 qv[seqfeature_id]['organism'] = lineage.split(';')[-1]
 
         for seqfeature_id, name, value in server.adaptor.execute_and_fetchall(qual_select_sql, feat_chunk2):
+            if not name:
+                continue
             try:
                 qv[seqfeature_id][name] = value
             except KeyError:

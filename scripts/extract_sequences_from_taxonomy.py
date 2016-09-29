@@ -107,7 +107,7 @@ def main(args):
                     for dbrec in dbrecs:
                         extract_feature(dbrec, args.output_format, fp)
                 else:
-                    SeqIO.write(dbid_s, fp, args.output_format)
+                    SeqIO.write(dbrecs, fp, args.output_format)
 
     else:
         if args.output_format == 'feat-prot':

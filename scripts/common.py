@@ -51,7 +51,7 @@ def get_seqfeature_id_from_qv(db, qualifier, value, biodatabase_id=None):
 
 
 def get_seqfeature_ids_from_qv(db, qualifier, value, biodatabase_id=None):
-    sql = r'select seqfeature_id from seqfeature_qualifier_value join term using(term_id) join seqfeature using(seqfeature_id) join bioentry using(bioentry_id) where term.name = %s and value = %s'
+    sql = r'select seqfeature_id from seqfeature_qualifier_value join term using(term_id) where term.name = %s and value = %s'
     if biodatabase_id is not None:
         sql += ' and biodatabase_id = %s'
 

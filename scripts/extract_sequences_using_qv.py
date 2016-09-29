@@ -27,7 +27,7 @@ def main(args):
 if __name__ == "__main__":
     parser = standard_options()
     parser.add_argument('-D', '--database-name', help='limit the extracted sequences from this namespace', dest='database_name')
-    parser.add_argument('-o', '--output_format', help='output format of the selected sequences', choices=['feat-prot', 'feat-nucl'], default='fasta')
+    parser.add_argument('-o', '--output_format', help='output format of the selected sequences', choices=['feat-prot', 'feat-nucl'], default='feat-prot')
     parser.add_argument('qualifier', help='name of the qualifier', default=None)
     parser.add_argument('value', help='value to match on' )
     args = parser.parse_args()
