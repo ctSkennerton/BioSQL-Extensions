@@ -31,7 +31,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = standard_options()
-    parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', required=True)
+    parser.add_argument('-D', '--database-name', help='namespace of the database that you want to output genes from', dest='database_name', required=True)
     parser.add_argument('-o', '--output_format', help='output format of the selected sequences', choices=['feat-prot', 'feat-nucl', 'fasta'], default='feat-prot')
     args = parser.parse_args()
     if args.password is None:
