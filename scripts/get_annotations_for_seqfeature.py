@@ -5,17 +5,9 @@ import argparse
 from BioSQL import BioSeqDatabase
 from BioSQL.BioSeq import DBSeqRecord
 import csv
+from getpass import getpass
+from common import standard_options, generate_placeholders, chunks
 
-def generate_placeholders(l):
-    placeholder= ['%s'] # use ? For SQLite. See DBAPI paramstyle.
-    return ', '.join(placeholder * l)
-
-
-def chunks(l, n):
-    """ Yield successive n-sized chunks from l.
-    """
-    for i in range(0, len(l), n):
-        yield l[i:i+n]
 
 def dbxref_dict(server, seqfeature_ids):
     db_qv = {}
@@ -105,15 +97,11 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--database', help='name of premade biosql database')
-    #parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default='metagenomic_database')
-    parser.add_argument('-r', '--driver', help='Python database driver to use (must be installed separately)', choices=["MySQLdb", "psycopg2", "sqlite3"], default='psycopg2')
-    parser.add_argument('-p', '--port', help='post to connect to on the host')
-    parser.add_argument('-u', '--user', help='database user name')
-    parser.add_argument('-P', '--password', help='database password for user')
-    parser.add_argument('-H', '--host', help='host to connect to', default='localhost')
+    parser = standard_options()
     parser.add_argument('input', help='file containing seqfeature ids')
     args = parser.parse_args()
+    if args.password is None:
+        args.password = getpass("Please enter the password for user " + \
+                args.user + " on database " + args.database)
     main(args)
 
