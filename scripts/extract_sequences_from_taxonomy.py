@@ -125,7 +125,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = standard_options()
+    parser = standard_options(description="This script will extract from the database all of the sequences associated with a particular taxonomy. The input is either an NCBI taxonomy ID or the complete taxonomic name.")
     parser.add_argument('-o', '--output_format', help='output format of the selected sequences', choices=['fasta', 'gb', 'feat-prot', 'feat-nucl'], default='fasta')
     parser.add_argument('taxid', help='supply a ncbi taxonomy id that will be extracted. If an integer is supplied it will be interpreted as an NCBI taxonomy id; otherwise it will be interpreted as part of a taxonomy name (e.g. Proteobacteria)', default=None)
     parser.add_argument('-s', '--split_species', help='when there are multiple species to be returned, split them into separate files, based on their name, instead of printing to stdout', default=False, action='store_true')
