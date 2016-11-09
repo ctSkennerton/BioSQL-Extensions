@@ -26,7 +26,8 @@ def load_genbank(db, genbank_file, fetch_taxonomy=False, taxid=None):
     with open(genbank_file) as fp:
         saved = []
         for rec in SeqIO.parse(fp, 'genbank' ):
-            saved.append(add_taxid(rec, taxid))
+            rec = add_taxid(rec, taxid)
+            saved.append(rec)
         db.load(saved, fetch_NCBI_taxonomy=fetch_taxonomy)
 
 
@@ -141,7 +142,7 @@ def main(args):
         if args.gff is not None and args.fasta is not None:
             load_gff(db, args.gff, args.fasta, args.tax_lookup, args.taxid)
         elif args.genbank is not None:
-            load_genbank(db, args.genbank, args.tax_lookup)
+            load_genbank(db, args.genbank, args.tax_lookup, args.taxid)
     except:
         server.adaptor.rollback()
         raise
