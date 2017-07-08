@@ -8,7 +8,7 @@ def get_seqfeature_for_db(server, biodb):
     ''' find all seqfeatures that have the given value for the qualifier
         returns a list of seqfeature_id
     '''
-    sql = "SELECT qv.seqfeature_id FROM seqfeature_qualifier_value qv join seqfeature s using(seqfeature_id) join bioentry b using(bioentry_id) join biodatabase bd using(biodatabase_id) WHERE bd.name = %s"
+    sql = "SELECT s.seqfeature_id FROM seqfeature s join bioentry b using(bioentry_id) join biodatabase bd using(biodatabase_id) WHERE bd.name = %s"
     return server.adaptor.execute_and_fetchall(sql, (biodb,))
 
 def main(args):
