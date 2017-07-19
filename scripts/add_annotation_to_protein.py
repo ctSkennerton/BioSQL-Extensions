@@ -70,11 +70,15 @@ def parse_input(infile):
         if len(header_fields) < 2:
             raise ValueError("The input file contains less than 2 columns. Make sure that the input is TAB separated")
 
-        for line in fp:
+        for line_number, line in enumerate(fp):
             fields = line.rstrip().split('\t')
             mapping[(header_fields[0], fields[0])] = {}
             for i in range(1,len(fields)):
-                mapping[(header_fields[0], fields[0])][header_fields[i]] = [fields[i]]
+                try:
+                    mapping[(header_fields[0], fields[0])][header_fields[i]] = [fields[i]]
+                except IndexError as e:
+                    print("problem mapping line", line_number, line, fields)
+                    raise e
 
     return mapping
 
@@ -129,7 +133,7 @@ def add_annotation(db, mapping, isSeqfeatureAlready=False, replace=False):
 if __name__ == '__main__':
     from getpass import getpass
     parser = standard_options()
-    parser.add_argument('-D', '--database-name', default='metagenomic_database',
+    parser.add_argument('-D', '--database-name', default=None,
         dest='dbname', help='name of the sub-database')
 
     # only one of the input formats can be given, but at least one must be given
@@ -150,7 +154,10 @@ if __name__ == '__main__':
             host=args.host,
             passwd=args.password)
 
-    db = server[args.dbname]
+    if args.dbname is None:
+        db = server[list(server.keys())[0]]
+    else:
+        db = server[args.dbname]
 
     if args.input is not None:
         mapping = parse_input(args.input)
