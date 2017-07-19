@@ -11,7 +11,8 @@ def main(args):
     seqfeature_ids = []
     with open(args.infile) as fp:
         for line in fp:
-            seqfeature_ids.append(int(line.rstrip()))
+            if line.strip():
+                seqfeature_ids.append(int(line.rstrip()))
 
     if args.output_format == 'feat-prot':
         extract_feature_sql(server, seqfeature_ids, type=['CDS'], translate=True )
