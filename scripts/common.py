@@ -1,3 +1,10 @@
+class OrphanDbError(Exception):
+    pass
+
+class OrphanDbInputError(OrphanDbError):
+    def __init__(self, message):
+        self.message = message
+
 from Bio.Seq import reverse_complement, translate as bio_translate
 def generate_placeholders(l):
     placeholder= ['%s'] # use ? For SQLite. See DBAPI paramstyle.
@@ -50,15 +57,37 @@ def get_seqfeature_id_from_qv(db, qualifier, value, biodatabase_id=None):
     return rows[0][0]
 
 
-def get_seqfeature_ids_from_qv(db, qualifier, value, biodatabase_id=None):
-    sql = r'select seqfeature_id from seqfeature_qualifier_value join term using(term_id) where term.name = %s and value = %s'
-    if biodatabase_id is not None:
-        sql += ' and biodatabase_id = %s'
+def get_seqfeature_ids_from_qv(db, qualifier, value, biodatabase_id=None, fuzzy=False):
+    if qualifier == 'db_xref':
+        # need to handle the special instance of qualifiers that refer to other databases
+        try:
+            dbname, accession = value.split(':')
+            sql = r'select seqfeature_id from seqfeature_dbxref join dbxref on dbxref.dbxref_id = seqfeature_dbxref.dbxref_id where dbxref.dbname = %s and dbxref.accession = %s'
+            col0 = db.adaptor.execute_and_fetch_col0(sql, (dbname, accession))
+        except ValueError:
+            raise OrphanDbInputError('''Error: value does not contain both a database name and value
+Hint: When using db_xref as the input qualifier, the value must contain two terms separated
+by a colon (:) character, for example ko:K03388, where the first part is the database name
+and the second part is the value in that crossreferenced database. The offending value is: ''' + value)
 
-    if biodatabase_id is not None:
-        col0 = db.adaptor.execute_and_fetch_col0(sql, (qualifier, value, db.dbid))
+
     else:
-        col0 = db.adaptor.execute_and_fetch_col0(sql, (qualifier, value))
+        if fuzzy:
+            if biodatabase_id is not None:
+                sql = r'select qv.seqfeature_id from seqfeature_qualifier_value qv join seqfeature s on qv.seqfeature_id=s.seqfeature_id join bioentry b on b.bioentry_id=s.bioentry_id join term t on t.term_id=qv.term_id join biodatabase d on d.biodatabase_id=b.biodatabase_id where t.name = %s and qv.value like %s and d.name = %s'
+            else:
+                sql = r'select seqfeature_id from seqfeature_qualifier_value join term using(term_id) where term.name = %s and value like %s'
+        else:
+            if biodatabase_id is not None:
+                sql = r'select qv.seqfeature_id from seqfeature_qualifier_value qv join seqfeature s on qv.seqfeature_id=s.seqfeature_id join bioentry b on b.bioentry_id=s.bioentry_id join term t on t.term_id=qv.term_id join biodatabase d on d.biodatabase_id=b.biodatabase_id where t.name = %s and qv.value = %s and d.name = %s'
+            else:
+                sql = r'select seqfeature_id from seqfeature_qualifier_value join term using(term_id) where term.name = %s and value = %s'
+
+
+        if biodatabase_id is not None:
+            col0 = db.adaptor.execute_and_fetch_col0(sql, (qualifier, value, biodatabase_id))
+        else:
+            col0 = db.adaptor.execute_and_fetch_col0(sql, (qualifier, value))
 
     if len(col0) == 0:
         raise ValueError("There are no seqfeature associated with qualifier={} and value={}".format(qualifier, value))
@@ -122,6 +151,11 @@ def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qu
                 qv[seqfeature_id] = {}
                 qv[seqfeature_id][name] = value
 
+        tax_name_select_sql = 'SELECT seqfeature.seqfeature_id, taxon_name.name FROM seqfeature JOIN bioentry ON seqfeature.bioentry_id = bioentry.bioentry_id JOIN taxon_name ON bioentry.taxon_id = taxon_name.taxon_id WHERE seqfeature.seqfeature_id IN ({}) AND taxon_name.name_class = \'scientific name\''.format(generate_placeholders(len(chunk)))
+        tax = {}
+        for seqfeature_id, name in server.adaptor.execute_and_fetchall(tax_name_select_sql, tuple(chunk)):
+            tax[seqfeature_id] = name
+
         for seqfeature_id, (strand, seq) in results.items():
             name = str(seqfeature_id)
             for q in qualifier:
@@ -130,6 +164,7 @@ def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qu
 
                 except KeyError:
                     pass
+
             if strand == -1:
                 try:
                     seq = reverse_complement(results[seqfeature_id][1])
@@ -140,6 +175,11 @@ def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qu
                 seq = bio_translate(seq)
             try:
                 name += ' ' + qv[seqfeature_id]['product']
+            except KeyError:
+                pass
+
+            try:
+                name += ' [' + tax[seqfeature_id] + ']'
             except KeyError:
                 pass
 
