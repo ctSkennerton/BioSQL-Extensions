@@ -7,6 +7,7 @@ from BioSQL import Loader
 from Bio import SeqIO
 from Bio import Entrez
 from common import standard_options
+from getpass import getpass
 Entrez.email = 'c.skennerton@gmail.com'
 
 def add_taxid(inIter, taxid):
