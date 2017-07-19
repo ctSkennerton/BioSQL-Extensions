@@ -72,6 +72,13 @@ def main(args):
                 "WHERE name like %s) AND include.right_value = include.left_value + 1)"
         rows = server.adaptor.execute_and_fetchall(taxon_name_lookup_sql, (args.taxid,))
 
+    if args.feature_type is not None:
+        types = args.feature_type
+    elif args.output_format == 'feat-prot':
+        types = ['CDS']
+    elif args.output_format == 'feat-nucl':
+        types = ['CDS', 'rRNA', 'tRNA']
+
     dbids = {}
     for row in rows:
         dbids[(row[0], row[2])] = row[1]
@@ -111,9 +118,9 @@ def main(args):
 
     else:
         if args.output_format == 'feat-prot':
-            extract_feature_sql(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]),type=['CDS'], translate=True )
+            extract_feature_sql(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]),type=types, translate=True )
         elif args.output_format == 'feat-nucl':
-            extract_feature_sql(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]))
+            extract_feature_sql(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]), type=types)
         else:
             for (dbid, dbname), taxid in dbids.items():
                 db = server[dbname]
@@ -129,6 +136,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output_format', help='output format of the selected sequences', choices=['fasta', 'gb', 'feat-prot', 'feat-nucl'], default='fasta')
     parser.add_argument('taxid', help='supply a ncbi taxonomy id that will be extracted. If an integer is supplied it will be interpreted as an NCBI taxonomy id; otherwise it will be interpreted as part of a taxonomy name (e.g. Proteobacteria)', default=None)
     parser.add_argument('-s', '--split_species', help='when there are multiple species to be returned, split them into separate files, based on their name, instead of printing to stdout', default=False, action='store_true')
+    parser.add_argument('-t', '--feature-type', help='restrict the results to feature type e.g. rRNA, tRNA, CDS. This option can be specified multiple times for multiple types', default=None, action='append')
     args = parser.parse_args()
     if args.password is None:
         args.password = getpass("Please enter the password for user " + \
