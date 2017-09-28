@@ -39,6 +39,38 @@ def standard_options(**kwargs):
 
     return parser
 
+
+def get_bioentries_from_taxonomy(server, taxid):
+    import sys
+    tax_name = False
+    try:
+        ncbi_tax = int(taxid)
+    except ValueError:
+        tax_name = True
+
+    if not tax_name:
+        print("interpreting as an NCBI taxon ID...", file=sys.stderr)
+        taxon_id_lookup_sql = "SELECT bioentry_id, taxon_id, biodatabase.name FROM bioentry JOIN "\
+                "biodatabase USING(biodatabase_id) WHERE taxon_id IN "\
+                "(SELECT DISTINCT include.taxon_id FROM taxon "\
+                "INNER JOIN taxon as include ON (include.left_value "\
+                "BETWEEN taxon.left_value AND taxon.right_value) "\
+                "WHERE taxon.ncbi_taxon_id  = %s AND include.right_value = include.left_value + 1)"
+
+        rows = server.adaptor.execute_and_fetchall(taxon_id_lookup_sql, (ncbi_tax,))
+    else:
+        print("interpreting as a taxon name...", file=sys.stderr)
+        taxon_name_lookup_sql = "SELECT bioentry_id, taxon_id, biodatabase.name FROM bioentry JOIN "\
+                "biodatabase USING(biodatabase_id) WHERE taxon_id IN "\
+                "(SELECT DISTINCT include.taxon_id FROM taxon "\
+                "INNER JOIN taxon as include ON (include.left_value "\
+                "BETWEEN taxon.left_value AND taxon.right_value) "\
+                "WHERE taxon.taxon_id IN (SELECT taxon_id FROM taxon_name "\
+                "WHERE name like %s) AND include.right_value = include.left_value + 1)"
+        rows = server.adaptor.execute_and_fetchall(taxon_name_lookup_sql, (taxid,))
+        return rows
+
+
 def get_seqfeature_id_from_qv(db, qualifier, value, biodatabase_id=None):
     sql = r'select seqfeature_id from seqfeature_qualifier_value join term using(term_id) join seqfeature using(seqfeature_id) join bioentry using(bioentry_id) where term.name = %s and value = %s'
     if biodatabase_id is not None:
