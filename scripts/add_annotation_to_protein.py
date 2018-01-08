@@ -46,13 +46,14 @@ class CustomDBLoader(Loader.DatabaseLoader):
                         qual_value_rank = i + qual_rank_start - 1
                         #print("qual_rank_start", qual_rank_start, i, qual_rank_start)
                         qualifier_value = entries[qual_value_rank]
-                        sql = r"INSERT INTO seqfeature_qualifier_value "\
-                              r" (seqfeature_id, term_id, rank, value) VALUES"\
-                              r" (%s, %s, %s, %s)"
-                        self.adaptor.execute(sql, (seqfeature_id,
-                                                   qualifier_key_id,
-                                                   qual_value_rank,
-                                                   qualifier_value))
+                        if qualifier_value != "":
+                            sql = r"INSERT INTO seqfeature_qualifier_value "\
+                                  r" (seqfeature_id, term_id, rank, value) VALUES"\
+                                  r" (%s, %s, %s, %s)"
+                            self.adaptor.execute(sql, (seqfeature_id,
+                                                       qualifier_key_id,
+                                                       qual_value_rank,
+                                                       qualifier_value))
                 else:
                     # The dbxref_id qualifier/value sets go into the dbxref table
                     # as dbname, accession, version tuples, with dbxref.dbxref_id
