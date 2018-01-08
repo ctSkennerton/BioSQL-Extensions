@@ -79,6 +79,13 @@ def main(args):
     elif args.output_format == 'feat-nucl':
         types = ['CDS', 'rRNA', 'tRNA']
 
+    if len(rows) == 0:
+        print("There does not appear to be any sequences associated with\n"
+                "the taxonomy provided. If you used a taxonomy name, make sure\n"
+                "it is spelled correctly. If you used an NCBI taxonomy ID, make\n"
+                "sure that it is correct.", file=sys.stderr)
+        sys.exit(1)
+
     dbids = {}
     for row in rows:
         dbids[(row[0], row[2])] = row[1]
