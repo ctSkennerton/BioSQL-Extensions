@@ -1,3 +1,4 @@
+import sys
 class OrphanDbError(Exception):
     pass
 
@@ -156,7 +157,7 @@ def get_seqfeature_ids_for_bioseqs(server, ids):
             seqfeature_ids.append(row[0])
     return seqfeature_ids
 
-def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qualifier=['ID','locus_tag'], translate=False):
+def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qualifier=['ID','locus_tag'], translate=False, file=sys.stdout):
     """raw sql extraction of fasta seqfeatures
     """
     for chunk in chunks(seqfeature_ids, 900):
@@ -203,6 +204,8 @@ def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qu
                 except TypeError as e:
                     raise TypeError("failed to retieve sequence for {}".format(seqfeature_id))
 
+            codon_start = int(qv[seqfeature_id].get("codon_start", [1])[0]) - 1
+            seq = seq[codon_start:]
             if translate:
                 seq = bio_translate(seq)
             try:
@@ -215,4 +218,4 @@ def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qu
             except KeyError:
                 pass
 
-            print(">{}\n{}".format(name, seq))
+            print(">{}\n{}".format(name, seq), file=file)

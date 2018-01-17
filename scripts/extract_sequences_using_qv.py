@@ -13,6 +13,7 @@ from common import generate_placeholders, chunks, standard_options, \
 
 
 
+
 def main(args):
     server = BioSeqDatabase.open_database(driver=args.driver, db=args.database, user=args.user, host=args.host, passwd=args.password)
 
