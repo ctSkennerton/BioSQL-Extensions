@@ -5,6 +5,7 @@ from getpass import getpass, getuser
 from BioSQL import BioSeqDatabase
 from BioSQL.BioSeq import DBSeqRecord
 from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 from common import generate_placeholders, chunks, extract_feature_sql, standard_options, get_seqfeature_ids_for_bioseqs
 
 def extract_feature(dbrec, output_format, fp, wanted_types=['CDS','rRNA', 'tRNA'], id_tag=None):
@@ -14,7 +15,12 @@ def extract_feature(dbrec, output_format, fp, wanted_types=['CDS','rRNA', 'tRNA'
         if feature.type not in wanted_types:
             continue
 
+        if 'pseudo' in feature.qualifiers:
+            continue
+
         feat_extract = feature.extract(dbrec.seq.toseq())
+        codon_start = int(feature.qualifiers.get("codon_start", [1])[0]) - 1
+        feat_extract = feat_extract[codon_start:]
         if output_format == 'feat-prot':
             feat_extract = feat_extract.translate()
 
