@@ -4,6 +4,7 @@ import sys
 from BioSQL import BioSeqDatabase
 from BioSQL import Loader
 from common import standard_options, get_seqfeature_id_from_qv
+import csv
 
 class CustomDBLoader(Loader.DatabaseLoader):
     """This is a slightly modified version of Loader.DatabaseLoader
@@ -63,24 +64,18 @@ class CustomDBLoader(Loader.DatabaseLoader):
                                                  seqfeature_id)
 
 
-def parse_input(infile):
+def parse_input(infile, key):
     mapping = {}
     with open(infile) as fp:
-        header = next(fp)
-        header_fields = header.rstrip().split('\t')
-        if len(header_fields) < 2:
-            raise ValueError("The input file contains less than 2 columns. Make sure that the input is TAB separated")
-
-        for line_number, line in enumerate(fp):
-            fields = line.rstrip().split('\t')
-            mapping[(header_fields[0], fields[0])] = {}
-            for i in range(1,len(fields)):
-                try:
-                    mapping[(header_fields[0], fields[0])][header_fields[i]] = [fields[i]]
-                except IndexError as e:
-                    print("problem mapping line", line_number, line, fields)
-                    raise e
-
+        reader = csv.DictReader(fp, delimiter="\t")
+        for row in reader:
+            mapping[(key, row[key])] = {}
+            for k, v in row.items():
+                if k != key:
+                    try:
+                        mapping[(key, row[key])][k].append(v)
+                    except KeyError:
+                        mapping[(key, row[key])][k] = [v]
     return mapping
 
 def parse_gff(infile):
@@ -123,6 +118,7 @@ def add_annotation(db, mapping, isSeqfeatureAlready=False, replace=False):
                 if qualifier == 'db_xref':
                     print('Cannot remove any current db_xref, you must do this manually for seqfeature {}'.format(seqfeature_id), file=sys.stderr)
                 else:
+                    #print("removing current annotations for <<{}>> tag in seqfeature {}".format(qualifier, seqfeature_id), file=sys.stderr)
                     db.adaptor.execute("delete from seqfeature_qualifier_value where term_id = \
                                 (select term_id from term where ontology_id = \
                                     (select ontology_id from ontology where name = 'Annotation Tags')\
@@ -144,6 +140,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-s', '--seqfeature', help='The first column of the input file is the seqfeature id used by the database. Does not apply when using a gff file as input', action='store_true', default=False)
     parser.add_argument('--replace', help='replace any existing annotations for the given qualifiers', action='store_true', default=False)
+    parser.add_argument('--key', help='name of the column that contains a unique identifier for the seqfeature. e.g. locus_tag', required=True)
     args = parser.parse_args()
     if args.password is None:
         args.password = getpass("Please enter the password for user " + \
@@ -161,7 +158,7 @@ if __name__ == '__main__':
         db = server[args.dbname]
 
     if args.input is not None:
-        mapping = parse_input(args.input)
+        mapping = parse_input(args.input, args.key)
     else:
         mapping = parse_gff(args.gff)
 
