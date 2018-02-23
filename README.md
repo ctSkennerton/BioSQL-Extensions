@@ -51,8 +51,9 @@ to have the quotes surrounding them.
 ### `add_annotation_to_protein.py`
 This script will add an annotation to a seqfeature (gene). You provide a **tab
 separated** input file that describes the annotations to add, where the first
-row *must* be a header that describes the qualifiers to add and the first column
-*must* be the name of the seqfeature.
+row *must* be a header that describes the qualifiers to add and one of the columns
+*must* uniquely identify a seqfeature. The name of this column must be given using
+the `--key` agrument on the command line
 
 Lets look at an example of what "qualifiers" are and how they could be represented
 in the input file. Below is a excerpt from a genbank file that shows all of the
@@ -79,13 +80,13 @@ This could be mapped onto a row of the input file as follows
 locus_tag   gene    EC_number   product
 KQ51_00006  proS    6.1.1.15    Proline--tRNA ligase
 ```
-In this case the script will look for a `locus_tag` with the value `KQ51_00006`
-and then add the values to that gene for the given qualifier. The first column,
+In this case the key column is `locus_tag` with the value `KQ51_00006`
+and then add the values to that gene for the given qualifier. The key column,
 whatever tag it is, must be unique amongst all genes in the database. Good qualifiers
 to use would be `locus_tag`, `ID` or `protein_id` as they are often unique. **However**,
 none of these qualifiers are *guaranteed* to be unique in our database, so be careful.
 The database itself has an ID called a `seqfeature_id` that *is* guaranteed to be
-unique, so if you know the seqfeature_id then use that. If the first column is
+unique, so if you know the seqfeature_id then use that. If the key column is
 the seqfeature_id, then you must provide the `-s` option to the script.
 
 When adding annotations to a gene, the default behavior is to add a second
@@ -96,11 +97,11 @@ what you want, say if the original annotation is incorrect; in this case use the
 #### Examples
 
  ```
- add_annotation_to_protein.py -u orphanlab -i annotations.tsv -s -d biosqldb
+ add_annotation_to_protein.py -u orphanlab -i annotations.tsv -s -d biosqldb --key seqfeature_id
  ```
 
  ```
- add_annotation_to_protein.py -u orphanlab -i annotations.tsv --replace -d biosqldb
+ add_annotation_to_protein.py -u orphanlab -i annotations.tsv --replace -d biosqldb --key locus_tag
  ```
 
 ### `extract_sequences_using_qv.py`
