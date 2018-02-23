@@ -190,6 +190,10 @@ def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qu
             tax[seqfeature_id] = name
 
         for seqfeature_id, (strand, seq) in results.items():
+            # remove any pseudo genes
+            if 'pseudo' in qv[seqfeature_id]:
+                continue
+
             name = str(seqfeature_id)
             for q in qualifier:
                 try:
