@@ -7,6 +7,7 @@ from BioSQL.BioSeq import DBSeqRecord
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from common import generate_placeholders, chunks, extract_feature_sql, standard_options, get_seqfeature_ids_for_bioseqs
+from get_annotations_for_seqfeature import print_feature_qv_csv
 
 def extract_feature(dbrec, output_format, fp, wanted_types=['CDS','rRNA', 'tRNA'], id_tag=None):
 
@@ -86,10 +87,14 @@ def main(args):
         types = ['CDS', 'rRNA', 'tRNA']
 
     if len(rows) == 0:
-        print("There does not appear to be any sequences associated with\n"
+        print("\nThere does not appear to be any sequences associated with\n"
                 "the taxonomy provided. If you used a taxonomy name, make sure\n"
-                "it is spelled correctly. If you used an NCBI taxonomy ID, make\n"
-                "sure that it is correct.", file=sys.stderr)
+                "it is spelled correctly. And remember that it must be the complete name\n"
+                "for a particular rank, for example 'Deltaproteo' will match nothing\n"
+                "it has to be 'Deltaproteobacteria'.\n"
+                "Don't forget to add 'Candidatus ' to the begining of some names\n"
+                "or the strain designation for a species. If you used an NCBI taxonomy ID, make\n"
+                "sure that it is correct by double checking on the NCBI taxonomy website.", file=sys.stderr)
         sys.exit(1)
 
     dbids = {}
@@ -106,6 +111,8 @@ def main(args):
                 tname += '.gb'
             elif args.output_format == 'feat-prot':
                 tname += '.faa'
+            elif args.output_format == 'csv':
+                tname += '.csv'
             else:
                 tname += '.fna'
             files[v] = tname
@@ -116,17 +123,21 @@ def main(args):
         # got to save all of the records before printing them out
         outdata = {}
         for taxid, dbid_list in taxid_to_dbids.items():
-            for dbid, dbname in dbid_list:
-                db = server[dbname]
-                seq_rec = db[dbid]
-                outdata.setdefault(taxid, []).append(seq_rec)
+            if args.output_format == 'csv':
+                with open(files[taxid], 'w') as fp:
+                    print_feature_qv_csv(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbid_list]), fp)
+            else:
+                for dbid, dbname in dbid_list:
+                    db = server[dbname]
+                    seq_rec = db[dbid]
+                    outdata.setdefault(taxid, []).append(seq_rec)
 
         for taxid, dbrecs in outdata.items():
             with open(files[taxid], 'w') as fp:
                 if 'feat' in args.output_format:
                     for dbrec in dbrecs:
                         extract_feature(dbrec, args.output_format, fp)
-                else:
+                elif 'csv' != args.output_format:
                     SeqIO.write(dbrecs, fp, args.output_format)
 
     else:
@@ -134,6 +145,8 @@ def main(args):
             extract_feature_sql(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]),type=types, translate=True )
         elif args.output_format == 'feat-nucl':
             extract_feature_sql(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]), type=types)
+        elif args.output_format == 'csv':
+            print_feature_qv_csv(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]))
         else:
             for (dbid, dbname), taxid in dbids.items():
                 db = server[dbname]
@@ -146,7 +159,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = standard_options(description="This script will extract from the database all of the sequences associated with a particular taxonomy. The input is either an NCBI taxonomy ID or the complete taxonomic name.")
-    parser.add_argument('-o', '--output_format', help='output format of the selected sequences', choices=['fasta', 'gb', 'feat-prot', 'feat-nucl'], default='fasta')
+    parser.add_argument('-o', '--output_format', help='output format of the selected sequences. Choices: fasta - fasta file of the contigs; gb - genbank file of the sequences; feat-prot - fasta file containing the translated coding sequences; feat-nucl - fasta file containing the untranslated coding sequences, tRNAs and rRNAs; csv - csv file of annotations for the features', choices=['fasta', 'gb', 'feat-prot', 'feat-nucl', 'csv'], default='fasta')
     parser.add_argument('taxid', help='supply a ncbi taxonomy id that will be extracted. If an integer is supplied it will be interpreted as an NCBI taxonomy id; otherwise it will be interpreted as part of a taxonomy name (e.g. Proteobacteria)', default=None)
     parser.add_argument('-s', '--split_species', help='when there are multiple species to be returned, split them into separate files, based on their name, instead of printing to stdout', default=False, action='store_true')
     parser.add_argument('-t', '--feature-type', help='restrict the results to feature type e.g. rRNA, tRNA, CDS. This option can be specified multiple times for multiple types', default=None, action='append')
