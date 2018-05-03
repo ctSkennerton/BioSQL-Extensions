@@ -1,4 +1,16 @@
 import sys
+class OrthologData(object):
+    """
+    """
+    def __init__(self, term_id, term_name):
+        self.term_id = term_id
+        self.term_name = term_name
+        self.product = ""
+        self.ec = []
+        self.dbxref_id = None
+        self.gene = []
+        self.genomes = {}
+
 class OrphanDbError(Exception):
     pass
 
@@ -73,14 +85,19 @@ def get_bioentries_from_taxonomy(server, taxid):
 
 
 def get_seqfeature_id_from_qv(db, qualifier, value, biodatabase_id=None):
-    sql = r'select seqfeature_id from seqfeature_qualifier_value join term using(term_id) join seqfeature using(seqfeature_id) join bioentry using(bioentry_id) where term.name = %s and value = %s'
+    rows = db.adaptor.execute_and_fetchall('select term_id from term join ontology using(ontology_id) where term.name = %s and ontology.name = \'Annotation Tags\'', (qualifier,))
+    if len(rows) != 1:
+        raise ValueError("The qualifier is not unique")
+
+    term_id = rows[0][0]
+    sql = r'select seqfeature_id from seqfeature_qualifier_value join seqfeature using(seqfeature_id) join bioentry using(bioentry_id) where seqfeature_qualifier_value.term_id = %s and value = %s'
     if biodatabase_id is not None:
         sql += ' and biodatabase_id = %s'
 
     if biodatabase_id is not None:
-        rows = db.adaptor.execute_and_fetchall(sql, (qualifier, value, db.dbid))
+        rows = db.adaptor.execute_and_fetchall(sql, (term_id, value, db.dbid))
     else:
-        rows = db.adaptor.execute_and_fetchall(sql, (qualifier, value))
+        rows = db.adaptor.execute_and_fetchall(sql, (term_id, value))
 
     if len(rows) > 1:
         raise ValueError("There is more than one seqfeature associated with qualifier={} and value={}".format(qualifier, value))
@@ -223,3 +240,63 @@ def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qu
                 pass
 
             print(">{}\n{}".format(name, seq), file=file)
+
+def get_kegg_id_from_name(server, orthology, brite='KEGG'):
+    ''' get the ID for the wanted orthology
+        server      the database connection object
+        brite       the particular type of orthology like KEGG or KEGG_modules
+        orthology   the actual term to search for
+
+        returns the internal database ID for the ortholog
+    '''
+
+    sql = 'select term_id from term where name like ?  and ontology_id = (select ontology_id from ontology where name = %s)'
+    rows = server.adaptor.execute_and_fetchall(sql, ('%'+orthology+'%', brite))
+    if len(rows) != 1:
+        raise OrphanDbError('That orthology either doesn\'t exist or isn\'t unique')
+
+    return rows[0][0]
+
+
+def get_kegg_data_from_id(server, orthology_id, brite="KEGG"):
+    ''' Get the dbxref data for an ortholgy
+        server          the database server object
+        orthology_id    the term_id for the orthology
+        brite           The kegg ontology to use -> KEGG or KEGG_modules
+
+        returns a dict of dbxref_id -> OrthologyData objects
+    '''
+    # get a list of all orthologs underneath the wanted module
+    sql = 'select object_term_id, term.name, term.identifier, distance from term_path join term on object_term_id = term.term_id where subject_term_id = %s and term_path.ontology_id = (select ontology_id from ontology where name = %s)'
+    rows = server.adaptor.execute_and_fetchall(sql, (orthology_id, brite))
+
+    term_names = {}
+    for x in rows:
+        if re.match(r'K\d+', x[1]):
+            term_names[x[0]] = x[1]
+
+    #print("found {} orthologs".format(len(term_names)), file=sys.stderr )
+
+    term_ids = term_names.keys()  #[x[0] for x in rows if x[3] == max_distance]
+    dbxref_ids = []
+    kegg_orthology_data = {}
+
+    for chunk in chunks(term_ids, 990):
+        sql = 'select dbxref_id, term_id from term_dbxref where term_id in (%s)'
+        sql = sql % generate_placeholders(len(chunk))
+        rows = server.adaptor.execute_and_fetchall(sql, tuple(chunk))
+        for row in rows:
+            kegg_orthology_data[row[0]] = OrthologData(row[1], term_names[row[1]])
+            kegg_orthology_data[row[0]].dbxref_id = row[0]
+            dbxref_ids.append(row[0])
+
+
+    # Now get some of the metadata for the dbxref like the name
+    sql = 'select * from dbxref_qualifier_value where term_id = (select term_id from term where name = \'product\' ) and dbxref_id in (%s)'
+    for chunk in chunks(dbxref_ids, 990):
+        sql = sql % generate_placeholders(len(chunk))
+        rows = server.adaptor.execute_and_fetchall(sql, tuple(chunk))
+        for row in rows:
+            kegg_orthology_data[row[0]].product = row[3]
+
+    return kegg_orthology_data
