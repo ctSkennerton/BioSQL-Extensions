@@ -125,7 +125,12 @@ def add_annotation(db, mapping, isSeqfeatureAlready=False, replace=False):
                                 and name = %s)\
                             and seqfeature_id = %s", (qualifier, seqfeature_id))
 
-        db_loader._load_seqfeature_qualifiers(values, seqfeature_id)
+        try:
+            db_loader._load_seqfeature_qualifiers(values, seqfeature_id)
+        except:
+            print("Fatal Error: failed to load {} with values {}".format(protein, values), file=sys.stderr)
+            print("Check the input file for possible errors", file=sys.stderr)
+            sys.exit(1)
 
 if __name__ == '__main__':
     from getpass import getpass
