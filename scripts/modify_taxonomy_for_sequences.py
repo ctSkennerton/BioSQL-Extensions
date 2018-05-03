@@ -136,7 +136,6 @@ def main(args):
     db = server[args.database_name]
 
 
-    taxon_id = add_new_taxonomy(server, args.new_taxons, args.taxid)
 
     gen = []
     if args.fasta is not None:
@@ -150,6 +149,11 @@ def main(args):
             for line in fp:
                 gen.append(line.rstrip())
 
+    if args.remove:
+        taxon_id = None
+    else:
+        taxon_id = add_new_taxonomy(server, args.new_taxons, args.taxid)
+
     for rec in gen:
         server.adaptor.execute('update bioentry set taxon_id = %s where bioentry_id = %s',(taxon_id, db.adaptor.fetch_seqid_by_display_id(db.dbid, rec)))
     server.commit()
@@ -157,11 +161,13 @@ def main(args):
 
 if __name__ == "__main__":
     parser = standard_options()
-    parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default='metagenomic_database')
+    parser.add_argument('-D', '--database-name', help='namespace of the database that you want to add into', dest='database_name', default=None)
     parser.add_argument('-f', '--fasta', help='fasta file to add into the database')
     parser.add_argument('-G', '--genbank', help='genbank file to add into the database')
     parser.add_argument('-i', '--input', help='file containing sequence names, one per line')
-    parser.add_argument('-T', '--taxid', help='supply a ncbi taxonomy id that will be applied to all sequences in the file, or if new_taxons are supplied on the command line this taxonomy ID will be used as the parent taxonomy for the novel lineages', required=True, default=None)
+    parser.add_argument('--remove', action='store_true', default=False, help='remove the taxonomy ID from the sequences')
+    parser.add_argument('-T', '--taxid', help='supply a ncbi taxonomy id that will be applied to all sequences in the file, or if new_taxons are supplied on the command line this taxonomy ID will be used as the parent taxonomy for the novel lineages', default=None)
+
     parser.add_argument('new_taxons', nargs="*", help='specify novel taxonomies not currenly in the NCBI database. each taxon specified on the command line should take the form of <taxon_name>:<taxon_rank>. Check the taxon table in the database for the appropriate values for the taxon_rank. e.g. ANME-2ab:family ANME-2b:genus ANME-hr1:species')
     args = parser.parse_args()
     if args.password is None:
