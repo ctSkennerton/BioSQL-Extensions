@@ -9,6 +9,7 @@ from BioSQL.BioSeq import DBSeqRecord
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 from biosqlx.util import print_feature_qv_csv, extract_feature_sql, get_bioentries_from_taxonomy, get_seqfeature_ids_for_bioseqs
+from biosqlx.taxon_tree import TaxonTree
 
 
 # global server object to be initialized by the main command
@@ -86,7 +87,12 @@ def modify():
 def annotation():
     '''Change of add in annotations to existing sequences'''
 
-@main.command()
+@main.group()
+def export():
+    '''Extract information from the database'''
+
+
+@export.command()
 @click.option('-o', '--output-format', help='output format of the selected sequences. '
         'Choices: fasta - fasta file of the contigs; gb - genbank file of the sequences; '
         'feat-prot - fasta file containing the translated coding sequences; '
@@ -107,8 +113,8 @@ def annotation():
 @click.option('-t', '--taxonomy', help='supply a taxonomy name that will be extracted. '
         'If an integer is supplied it will be interpreted as an NCBI '
         'taxonomy id; otherwise it will be interpreted as part of a taxonomy name (e.g. Proteobacteria)')
-def export(output_format, split_species, feature_type, fuzzy, qualifier, value, taxonomy):
-    '''Extract information from the database'''
+def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value, taxonomy):
+    '''Extract information about sequences from the database'''
     click.echo('me')
 
 
@@ -194,12 +200,27 @@ def export(output_format, split_species, feature_type, fuzzy, qualifier, value, 
                 except KeyError:
                     pass
 
+@export.command()
+@click.option('-r', '--root', help='Specify the root of the output tree. '
+        'The default is to print all of the organisms in the tree, but by '
+        'using this option you can specify a subtree to print', default=None)
+def taxonomy(root):
+    '''Get information about the organisms present in the database'''
+    tree = TaxonTree(server.adaptor)
+    if root is not None:
+        elements = tree.find_elements(name=root)
+        if len(elements) != 1:
+            click.echo("The name {} is found more than once or not at all; cannot use as the root node".format(root), file=sys.stderr)
+            sys.exit(1)
+        else:
+            root = elements[0]
+    click.echo(tree.pretty_print(root_node=root))
 
-@main.command()
+
+@main.group()
 def info():
     '''Get information about the database'''
     click.echo('bleg')
-
 
 
 if __name__ == "__main__":

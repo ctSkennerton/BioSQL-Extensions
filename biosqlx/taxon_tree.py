@@ -276,6 +276,9 @@ class TaxonTree(object):
         return list(map(self._make_node, results))
 
     def __str__(self):
+        return self.pretty_print()
+
+    def pretty_print(self, root_node=None, debug=False):
 
         sql = '''
            SELECT node.taxon_id, node.parent_taxon_id,
@@ -285,6 +288,14 @@ class TaxonTree(object):
            JOIN taxon node ON node.left_value BETWEEN root.left_value AND root.right_value
            JOIN taxon_name ON node.taxon_id = taxon_name.taxon_id
            WHERE taxon_name.name_class = 'scientific name'
+           '''
+        if root_node is not None:
+            sql += '''
+                AND root.left_value >= {} AND root.right_value <= {}
+                '''.format(root_node._left_val, root_node._right_val)
+
+
+        sql += '''
            GROUP BY node.taxon_id, taxon_name.name
            ORDER BY node.left_value ASC
            '''
@@ -293,14 +304,18 @@ class TaxonTree(object):
         lines = []
         for taxon_id, parent_taxon_id, left_val, right_val, taxon_name, node_rank, count in results:
             if parent_taxon_id != -1:
-               indent = u'  ' * (count - 2) + u'└─'
+               indent = u'  ' * (count - 1) + u'└─'
             else:
                indent = ''
 
             if node_rank is None:
                 node_rank = 'undefined rank'
 
-            line = u'{0}{1} ({6}) {2} → {3} ({4}, {5})'.format(indent, taxon_name, taxon_id, parent_taxon_id, left_val, right_val, node_rank)
+            if debug:
+                line = u'{0}{1} ({6}) {2} → {3} ({4}, {5})'.format(indent, taxon_name, taxon_id, parent_taxon_id, left_val, right_val, node_rank)
+            else:
+                line = u'{0}{1} ({2})'.format(indent, taxon_name, node_rank)
+
             lines.append(line)
 
         return '\n'.join(lines)
