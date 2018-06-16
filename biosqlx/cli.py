@@ -2,6 +2,7 @@
 
 """Console script for biosqlx."""
 import sys
+import csv
 import click
 from getpass import getuser, getpass
 from BioSQL import BioSeqDatabase
@@ -204,7 +205,11 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
 @click.option('-r', '--root', help='Specify the root of the output tree. '
         'The default is to print all of the organisms in the tree, but by '
         'using this option you can specify a subtree to print', default=None)
-def taxonomy(root):
+@click.option('-o', '--output-format', type=click.Choice(['tree', 'lineage']),
+        help='choose differnt output formats for the data. The tree format '
+        'will print a nice hierarchical representation; lineage will print a '
+        'semicolon (;) separated list of the taxonomy', default='tree')
+def taxonomy(root, output_format):
     '''Get information about the organisms present in the database'''
     tree = TaxonTree(server.adaptor)
     if root is not None:
@@ -214,7 +219,13 @@ def taxonomy(root):
             sys.exit(1)
         else:
             root = elements[0]
-    click.echo(tree.pretty_print(root_node=root))
+    if output_format == 'tree':
+        click.echo(tree.pretty_print(root_node=root))
+    elif output_format == 'lineage':
+        writer = csv.writer(sys.stdout)
+        for row in tree.lineage(root_node=root):
+            writer.writerow(row)
+
 
 
 @main.group()

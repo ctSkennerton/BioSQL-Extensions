@@ -278,6 +278,28 @@ class TaxonTree(object):
     def __str__(self):
         return self.pretty_print()
 
+    def lineage(self, root_node=None):
+        sql = '''
+        SELECT lineage.id,
+            string_agg(lineage.name::text, ';'::text) AS lineage
+        FROM ( SELECT child.taxon_id AS id, name.name
+               FROM taxon child
+               JOIN taxon ancestor ON child.left_value >= ancestor.left_value AND child.left_value <= ancestor.right_value
+               JOIN taxon_name name ON name.taxon_id = ancestor.taxon_id
+               WHERE child.right_value = (child.left_value + 1) AND name.name_class::text = 'scientific name'::text
+        '''
+        if root_node is not None:
+            sql += '''
+                AND ancestor.left_value >= {} AND ancestor.right_value <= {}
+                '''.format(root_node._left_val, root_node._right_val)
+
+        sql += '''
+               ORDER BY ancestor.left_value) lineage
+         GROUP BY lineage.id;
+         '''
+        return self.adaptor.execute_and_fetchall(sql)
+
+
     def pretty_print(self, root_node=None, debug=False):
 
         sql = '''
