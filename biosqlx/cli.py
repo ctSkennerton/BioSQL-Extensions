@@ -52,7 +52,7 @@ def _check_tax(server, taxonomy):
 @click.option('-P','--password', help='database password for user')
 @click.option('-H', '--host', help='host to connect to',
         default='localhost', show_default=True)
-def main(database, database_name, driver, port, user, password, host):
+def main(database, driver, port, user, password, host):
     """Console script for biosqlx."""
     global server
     if password is None:
@@ -209,7 +209,7 @@ def modify():
         'will be skipped. Make sure that the ID or locus_tag are unique '
         '(and present) in the database otherwise the attributes will not '
         'be loaded.')
-@click.option('-s', '--seqfeature', help='The first column of the input '
+@click.option('-s', '--seqfeature', help='The key column of the input '
         'file is the seqfeature id used by the database. Does not apply '
         'when using a gff file as input', is_flag=True, default=False)
 @click.option('--replace', help='replace any existing annotations for the '
