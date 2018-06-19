@@ -152,9 +152,16 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
         files = {}
         taxid_to_dbids = {}
         for k, v in dbids.items():
-            tname = server.adaptor.execute_and_fetch_col0(
-                    "SELECT name from taxon_name where taxon_id = %s and name_class = %s",
-                    (v,'scientific name'))[0]
+            if v is None:
+                # special case for no taxonomy
+                tname = 'Unassigned'
+            else:
+                try:
+                    tname = server.adaptor.execute_and_fetch_col0(
+                            "SELECT name from taxon_name where taxon_id = %s and name_class = %s",
+                            (v,'scientific name'))[0]
+                except IndexError:
+                    raise RuntimeError("cannot get the scientific name for {}".format(v))
             tname = tname.replace(' ', '_')
             if output_format == 'gb':
                 tname += '.gb'
@@ -208,7 +215,27 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
         # can move on here to printing
         if taxonomy is None:
             if split_species:
-                raise NotImplementedError()
+                seqfeature_bioentries = get_bioseqid_for_seqfeature(server, seqfeature_ids)
+                dbid_to_seqfeature_id = {}
+                filtered_tax = {}
+                for dbname, dbid, seqfeatureid, taxon_id in seqfeature_bioentries:
+                    filtered_tax[(dbid, dbname)] = taxon_id
+                    try:
+                        dbid_to_seqfeature_id[dbid].append(seqfeatureid)
+                    except KeyError:
+                        dbid_to_seqfeature_id[dbid] = [seqfeatureid]
+
+                files, taxid_to_dbid = _make_file_mapping(server, filtered_tax)
+                taxid_to_seqfeature = {}
+                for taxid, dbid_list in taxid_to_dbid.items():
+                    taxid_seqfeatures = []
+                    for dbid, dbname in dbid_list:
+                        taxid_seqfeatures.extend(dbid_to_seqfeature_id[dbid])
+
+                    with open(files[taxid], 'w') as fp:
+                        _choose_output_format(server, taxid_seqfeatures,
+                                              feature_type, output_format,
+                                              ofile=fp, bioentries=None)
             else:
                 _choose_output_format(server, seqfeature_ids, feature_type, output_format)
                 #seqfeature_bioentries = get_bioseqid_for_seqfeature(server, seqfeature_ids)
@@ -225,7 +252,7 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
             final_seqfeatures = []
             dbid_to_seqfeature_id = {}
             filtered_tax = {}
-            for dbname, dbid, seqfeatureid in seqfeature_bioentries:
+            for dbname, dbid, seqfeatureid, taxon_id in seqfeature_bioentries:
                 if (dbid, dbname) in dbids:
                     filtered_tax[(dbid, dbname)] = dbids[(dbid, dbname)]
                     final_seqfeatures.append(seqfeatureid)
