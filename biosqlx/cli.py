@@ -9,7 +9,12 @@ from BioSQL import BioSeqDatabase
 from BioSQL.BioSeq import DBSeqRecord
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
-from biosqlx.util import print_feature_qv_csv, extract_feature_sql, get_bioentries_from_taxonomy, get_seqfeature_ids_for_bioseqs
+from biosqlx.util import print_feature_qv_csv, \
+        extract_feature_sql, \
+        get_bioentries_from_taxonomy, \
+        get_seqfeature_ids_for_bioseqs, \
+        get_seqfeature_ids_from_qv, \
+        get_bioseqid_for_seqfeature
 from biosqlx.taxon_tree import TaxonTree
 
 
@@ -116,29 +121,36 @@ def export():
         'taxonomy id; otherwise it will be interpreted as part of a taxonomy name (e.g. Proteobacteria)')
 def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value, taxonomy):
     '''Extract information about sequences from the database'''
-    click.echo('me')
+    if qualifier is None and value is None and taxonomy is None:
+        click.echo("please provide at least -t (extract by taxonomy) or both -q & -v (qualifier and value)")
+        sys,exit(1)
+
+    if feature_type:
+        feature_type = list(feature_type)
+    elif output_format == 'feat-prot':
+        feature_type = ['CDS']
+    elif output_format == 'feat-nucl':
+        feature_type = ['CDS', 'rRNA', 'tRNA']
+
+    def _check_tax(server, taxonomy):
+        rows = get_bioentries_from_taxonomy(server, taxonomy)
+        if len(rows) == 0:
+            click.echo("\nThere does not appear to be any sequences associated with\n"
+                    "the taxonomy provided. If you used a taxonomy name, make sure\n"
+                    "it is spelled correctly. And remember that it must be the complete name\n"
+                    "for a particular rank, for example 'Deltaproteo' will match nothing\n"
+                    "it has to be 'Deltaproteobacteria'.\n"
+                    "Don't forget to add 'Candidatus ' to the begining of some names\n"
+                    "or the strain designation for a species. If you used an NCBI taxonomy ID, make\n"
+                    "sure that it is correct by double checking on the NCBI taxonomy website.", file=sys.stderr)
+            sys.exit(1)
+        else:
+            return rows
 
 
-    rows = get_bioentries_from_taxonomy(server, taxonomy)
-    if len(rows) == 0:
-        click.echo("\nThere does not appear to be any sequences associated with\n"
-                "the taxonomy provided. If you used a taxonomy name, make sure\n"
-                "it is spelled correctly. And remember that it must be the complete name\n"
-                "for a particular rank, for example 'Deltaproteo' will match nothing\n"
-                "it has to be 'Deltaproteobacteria'.\n"
-                "Don't forget to add 'Candidatus ' to the begining of some names\n"
-                "or the strain designation for a species. If you used an NCBI taxonomy ID, make\n"
-                "sure that it is correct by double checking on the NCBI taxonomy website.", file=sys.stderr)
-        sys.exit(1)
-
-
-    dbids = {}
-    for row in rows:
-        dbids[(row[0], row[2])] = row[1]
-    files = {}
-    taxid_to_dbids = {}
-    if split_species:
-        taxon_file_mapping = {}
+    def _make_file_mapping(server, dbids):
+        files = {}
+        taxid_to_dbids = {}
         for k, v in dbids.items():
             tname = server.adaptor.execute_and_fetch_col0(
                     "SELECT name from taxon_name where taxon_id = %s and name_class = %s",
@@ -152,54 +164,82 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
                 tname += '.csv'
             else:
                 tname += '.fna'
-            files[v] = tname
-            taxid_to_dbids.setdefault(v, []).append(k)
+        files[v] = tname
+        taxid_to_dbids.setdefault(v, []).append(k)
+        return files, taxid_to_dbids
 
 
-    if split_species:
-        # got to save all of the records before printing them out
-        outdata = {}
-        for taxid, dbid_list in taxid_to_dbids.items():
-            if output_format == 'csv':
-                with open(files[taxid], 'w') as fp:
-                    print_feature_qv_csv(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbid_list]), fp)
-            else:
-                for dbid, dbname in dbid_list:
-                    db = server[dbname]
-                    seq_rec = db[dbid]
-                    outdata.setdefault(taxid, []).append(seq_rec)
-
-        for taxid, dbrecs in outdata.items():
-            with open(files[taxid], 'w') as fp:
-                if 'feat' in output_format:
-                    for dbrec in dbrecs:
-                        extract_feature(dbrec, output_format, fp)
-                elif 'csv' != output_format:
-                    SeqIO.write(dbrecs, fp, output_format)
-
-    else:
-
-        if feature_type is not None:
-            types = feature_type
-        elif output_format == 'feat-prot':
-            types = ['CDS']
-        elif output_format == 'feat-nucl':
-            types = ['CDS', 'rRNA', 'tRNA']
-
+    def _choose_output_format(server, sfids, feature_type, output_format, ofile=sys.stdout):
         if output_format == 'feat-prot':
-            extract_feature_sql(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]),type=types, translate=True )
+            extract_feature_sql(server, sfids, type=feature_type, translate=True, file=ofile )
         elif output_format == 'feat-nucl':
-            extract_feature_sql(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]), type=types)
+            extract_feature_sql(server, sfids, type=feature_type, file=ofile)
         elif output_format == 'csv':
-            print_feature_qv_csv(server, get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()]))
+            print_feature_qv_csv(server, sfids, outfile=ofile)
         else:
-            for (dbid, dbname), taxid in dbids.items():
-                db = server[dbname]
-                try:
-                    dbrec = db[dbid]
-                    SeqIO.write(dbrec, sys.stdout, output_format)
-                except KeyError:
-                    pass
+            # the user wants the fasta or genbank options, in which case the
+            # whole biosequence will be returned
+            seqfeature_bioentries = get_bioseqid_for_seqfeature(server, sfids)
+            printed_bioseqs = set()
+            for dbname, dbid, seqfeatureid in seqfeature_bioentries:
+                if dbid not in printed_bioseqs:
+                    db = server[dbname]
+                    try:
+                        dbrec = db[dbid]
+                        SeqIO.write(dbrec, ofile, output_format)
+                    except KeyError:
+                        pass
+                    finally:
+                        printed_bioseqs.add(dbid)
+
+    dbids = {}
+    if taxonomy:
+        rows = _check_tax(server, taxonomy)
+        for dbid, taxon_id, dbname in rows:
+            dbids[(dbid, dbname)] = taxon_id
+
+    output_files = {}
+
+    # selecting a qualifier and value is going to be a more specific search, so start there
+    if qualifier and value:
+        seqfeature_ids = get_seqfeature_ids_from_qv(server, qualifier, value, fuzzy=fuzzy)
+
+        # if the output_format is just features and is all going to one output file then we
+        # can move on here to printing
+        if taxonomy is None:
+            if split_species:
+                raise NotImplementedError()
+            else:
+                _choose_output_format(server, seqfeature_ids, feature_type, output_format)
+                #seqfeature_bioentries = get_bioseqid_for_seqfeature(server, seqfeature_ids)
+                #for dbname, dbid, seqfeatureid in seqfeature_bioentries:
+                #    taxid = dbids[(dbid, dbname)]
+                #    outfile_name = _make_file_mapping(server, taxid)
+                #    if outfile_name not in output_files:
+                #        output_files[outfile_name] = open(outfile_name, 'w')
+
+                #    _choose_output_format(server, seqfeature_ids, feature_type, output_format, output_files[outfile_name])
+        else:
+            seqfeature_bioentries = get_bioseqid_for_seqfeature(server, seqfeature_ids)
+            final_seqfeatures = []
+            for dbname, dbid, seqfeatureid in seqfeature_bioentries:
+                if (dbid, dbname) in dbids:
+                    final_seqfeatures.append(seqfeatureid)
+
+            if split_species:
+                #files, taxid_to_dbid = _make_file_mapping(server, dbids)
+                #if outfile_name not in output_files:
+                #    output_files[outfile_name] = open(outfile_name, 'w')
+
+                #_choose_output_format(server, seqfeature_ids, feature_type, output_format, output_files[outfile_name])
+                raise NotImplementedError()
+            else:
+                _choose_output_format(server, final_seqfeatures, feature_type, output_format)
+    else:
+        # no qualifier and value
+        final_seqfeatures = get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()])
+        _choose_output_format(server, final_seqfeatures, feature_type, output_format)
+
 
 @export.command()
 @click.option('-r', '--root', help='Specify the root of the output tree. '

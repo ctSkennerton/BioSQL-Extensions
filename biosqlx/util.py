@@ -81,7 +81,8 @@ def get_bioentries_from_taxonomy(server, taxid):
                 "WHERE taxon.taxon_id IN (SELECT taxon_id FROM taxon_name "\
                 "WHERE name like %s) AND include.right_value = include.left_value + 1)"
         rows = server.adaptor.execute_and_fetchall(taxon_name_lookup_sql, (taxid,))
-        return rows
+
+    return rows
 
 
 def print_feature_qv_csv(server, sfids, outfile=sys.stdout):
@@ -241,6 +242,8 @@ def get_seqfeature_from_input(server, input_ids, type='ID'):
     return ret
 
 def get_bioseqid_for_seqfeature(server, ids):
+    '''
+    '''
     bioentry_ids = []
     for c in chunks(ids, 900):
         sql = "SELECT d.name, s.bioentry_id, s.seqfeature_id FROM seqfeature s  \
@@ -397,3 +400,23 @@ def get_kegg_data_from_id(server, orthology_id, brite="KEGG"):
             kegg_orthology_data[row[0]].product = row[3]
 
     return kegg_orthology_data
+
+
+def filter_seqfeature_ids_by_taxonomy(server, seqfeature_ids, taxid):
+    wanted_bioentries = get_bioentries_from_taxonomy(server, taxid)
+    seqfeature_bioentries = get_bioseqid_for_seqfeature(server, seqfeature_ids)
+    seqfeature_bioentry_map = {}
+    for row in seqfeature_bioentries:
+        try:
+            seqfeature_bioentry_map[row[1]].append(row[2])
+        except KeyError:
+            seqfeature_bioentry_map[row[1]] = [row[2]]
+
+    final_seqfeatures = []
+    for row in wanted_bioentries:
+        try:
+            final_seqfeatures.extend(seqfeature_bioentry_map[row[0]])
+        except KeyError:
+            pass
+
+    return final_seqfeatures
