@@ -1,26 +1,35 @@
 # Introduction
-This is a repository of sql tables and views and scripts that could be added onto an
-existing BioSQL database. There are a number of scripts that should hopefully work on
-any BioSQL database and have been developed for easy access to various information.
+This is a repository of sql tables and views and scripts that could be
+added onto an existing BioSQL database. There are a number of scripts
+that should hopefully work on any BioSQL database and have been developed
+for easy access to various information.
 
 
-In addition there tables that were made solely for sqlite3
-and are primarily related to adding functionality for performing proteomics
-experiments. I have not tried to write the proteomics tables in a porable way, they were designed to model the data created by the SIPROS program.
+In addition there tables that were made solely for sqlite3 and are
+primarily related to adding functionality for performing proteomics
+experiments. I have not tried to write the proteomics tables in a porable
+way, they were designed to model the data created by the SIPROS program.
 
 
 ## Command line    
 
-There is a main script `biosqlx` that serves as the main extry point for quickly
-accessing information in the database. There are a number of subcommands that allow you to add, modify or export information from the database
+There is a main script `biosqlx` that serves as the main extry point
+for quickly accessing information in the database. There are a number
+of subcommands that allow you to add, modify or export information from
+the database.  For example `biosqlx add sequence` allows you to add
+new sequence data into the database, while `biosqlx export sequence`
+lets you extract data out. 
 
 ### connecting to the database
-Extract all of the ANME-2a sequences as a genbank file specifying the host for the
-database. This option is required when running the script on a computer other than
-ocean (like your own laptop)
-```
-extract_sequences_from_taxonomy.py -u orphanlab -o gb -H ocean.gps.caltech.edu -d biosqldb ANME-2a
-```
+The top level command `biosqlx` contains a
+few options that let you change how to connect to the database.
+
+* `-d`: This is the name of the database to connect to
+* `-r`: This is the database driver to use, according to the biosql documentation
+* `-u`: The user name to use to connect to the database.
+* `-P`: Password for the user to login to the database
+* `-H`: The host name that the database can be found on
+* `-p`: The port on the host that the database is found on
 
 ### `biosqlx export sequence`
 This subcommand allows you to slice and dice the sequence data using
@@ -106,8 +115,8 @@ biosqlx export sequence -t Desulfovibrio --split-species
 ```
 
 
-### `add_annotation_to_protein.py`
-This script will add an annotation to a seqfeature (gene). You provide a **tab
+### `biosqlx modify annotation`
+This subcommand will add or modify an annotation to a seqfeature (gene). You provide a **tab
 separated** input file that describes the annotations to add, where the first
 row *must* be a header that describes the qualifiers to add and one of the columns
 *must* uniquely identify a seqfeature. The name of this column must be given using
@@ -117,7 +126,7 @@ Lets look at an example of what "qualifiers" are and how they could be represent
 in the input file. Below is a excerpt from a genbank file that shows all of the
 annotations for a particular protein. The qualifiers of the gene are shown on
 the lines that begin with a "/" character and come before the "=" character
-(eg. gene, EC_number).
+(eg. gene, EC\_number).
 
 ```
 CDS             complement(6523..7818)
@@ -152,24 +161,11 @@ annotation to a gene if one already exists for that qualifier. This may not be
 what you want, say if the original annotation is incorrect; in this case use the
 `--replace` flag to the script.
 
-#### Examples
 
  ```
- add_annotation_to_protein.py -u orphanlab -i annotations.tsv -s -d biosqldb --key seqfeature_id
+ biosqlx modify annotation -i annotations.tsv --key seqfeature_id
  ```
 
  ```
- add_annotation_to_protein.py -u orphanlab -i annotations.tsv --replace -d biosqldb --key locus_tag
+ biosqlx modify annotation -i annotations.tsv --replace --key locus_tag
  ```
-
-### `extract_seqfeatures.py`
-This is a lower level script that will extract genes using the seqfeature_id, which
-is the database specific identifier that is guaranteed to be unique. Supply an
-input file containing seqfeature_ids. Will print fasta files of the genes.
-
-### `get_annotations_for_seqfeature.py`
-This script prints all of the qualifier value information for each gene as a
-csv file. You must provide an input file containing seqfeature_ids
-
-### `dump_biodatabae.py`
-output all of the genes in a particular biodatabase   
