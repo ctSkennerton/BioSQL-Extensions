@@ -164,12 +164,12 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
                 tname += '.csv'
             else:
                 tname += '.fna'
-        files[v] = tname
-        taxid_to_dbids.setdefault(v, []).append(k)
+            files[v] = tname
+            taxid_to_dbids.setdefault(v, []).append(k)
         return files, taxid_to_dbids
 
 
-    def _choose_output_format(server, sfids, feature_type, output_format, ofile=sys.stdout):
+    def _choose_output_format(server, sfids, feature_type, output_format, ofile=sys.stdout, bioentries=None):
         if output_format == 'feat-prot':
             extract_feature_sql(server, sfids, type=feature_type, translate=True, file=ofile )
         elif output_format == 'feat-nucl':
@@ -220,19 +220,33 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
 
                 #    _choose_output_format(server, seqfeature_ids, feature_type, output_format, output_files[outfile_name])
         else:
+            # filter the seqfeatures based on the wanted taxonomy
             seqfeature_bioentries = get_bioseqid_for_seqfeature(server, seqfeature_ids)
             final_seqfeatures = []
+            dbid_to_seqfeature_id = {}
+            filtered_tax = {}
             for dbname, dbid, seqfeatureid in seqfeature_bioentries:
                 if (dbid, dbname) in dbids:
+                    filtered_tax[(dbid, dbname)] = dbids[(dbid, dbname)]
                     final_seqfeatures.append(seqfeatureid)
+                    try:
+                        dbid_to_seqfeature_id[dbid].append(seqfeatureid)
+                    except KeyError:
+                        dbid_to_seqfeature_id[dbid] = [seqfeatureid]
 
             if split_species:
-                #files, taxid_to_dbid = _make_file_mapping(server, dbids)
-                #if outfile_name not in output_files:
-                #    output_files[outfile_name] = open(outfile_name, 'w')
+                # get a mapping of the taxonomy
+                files, taxid_to_dbid = _make_file_mapping(server, filtered_tax)
+                taxid_to_seqfeature = {}
+                for taxid, dbid_list in taxid_to_dbid.items():
+                    taxid_seqfeatures = []
+                    for dbid, dbname in dbid_list:
+                        taxid_seqfeatures.extend(dbid_to_seqfeature_id[dbid])
 
-                #_choose_output_format(server, seqfeature_ids, feature_type, output_format, output_files[outfile_name])
-                raise NotImplementedError()
+                    with open(files[taxid], 'w') as fp:
+                        _choose_output_format(server, taxid_seqfeatures,
+                                              feature_type, output_format,
+                                              ofile=fp, bioentries=None)
             else:
                 _choose_output_format(server, final_seqfeatures, feature_type, output_format)
     else:
