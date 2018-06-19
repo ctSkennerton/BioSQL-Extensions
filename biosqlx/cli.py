@@ -4,6 +4,7 @@
 import sys
 import csv
 import click
+import os
 from getpass import getuser, getpass
 from BioSQL import BioSeqDatabase
 from BioSQL.BioSeq import DBSeqRecord
@@ -17,7 +18,7 @@ from biosqlx.util import print_feature_qv_csv, \
         get_bioseqid_for_seqfeature
 from biosqlx.taxon_tree import TaxonTree
 from biosqlx.biosqlx import CustomDBLoader
-
+from dotenv import load_dotenv, find_dotenv
 
 # global server object to be initialized by the main command
 # and utilized by all of the subcommands
@@ -55,6 +56,14 @@ def _check_tax(server, taxonomy):
 def main(database, driver, port, user, password, host):
     """Console script for biosqlx."""
     global server
+
+    dotenv_path = os.path.join(os.path.expanduser("~"), '.biosqlx.cfg')
+    # load up the entries as environment variables
+    load_dotenv(dotenv_path)
+
+    user = os.environ.get("BIOSQLX_USER", getuser())
+    password = os.environ.get("BIOSQLX_PASSWORD")
+
     if password is None:
         password = getpass("Please enter the password for user " + \
                 user + " on database " + database + ": ")
