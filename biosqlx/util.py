@@ -246,7 +246,7 @@ def get_bioseqid_for_seqfeature(server, ids):
     '''
     bioentry_ids = []
     for c in chunks(ids, 900):
-        sql = "SELECT d.name, s.bioentry_id, s.seqfeature_id FROM seqfeature s  \
+        sql = "SELECT d.name, s.bioentry_id, s.seqfeature_id, b.taxon_id FROM seqfeature s  \
                 JOIN bioentry b ON s.bioentry_id = b.bioentry_id JOIN biodatabase d ON b.biodatabase_id = d.biodatabase_id WHERE \
                 s.seqfeature_id IN ({})".format(generate_placeholders(len(c)))
         for row in server.adaptor.execute_and_fetchall(sql, tuple(c)):
