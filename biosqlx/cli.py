@@ -278,8 +278,26 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
                 _choose_output_format(server, final_seqfeatures, feature_type, output_format)
     else:
         # no qualifier and value
-        final_seqfeatures = get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()])
-        _choose_output_format(server, final_seqfeatures, feature_type, output_format)
+        if split_species:
+            dbid_to_seqfeature_id = {}
+            for dbid, dbname in dbids.keys():
+                dbid_to_seqfeature_id[dbid] = get_seqfeature_ids_for_bioseqs(server, [dbid])
+
+            # get a mapping of the taxonomy
+            files, taxid_to_dbid = _make_file_mapping(server, dbids)
+            taxid_to_seqfeature = {}
+            for taxid, dbid_list in taxid_to_dbid.items():
+                taxid_seqfeatures = []
+                for dbid, dbname in dbid_list:
+                    taxid_seqfeatures.extend(dbid_to_seqfeature_id[dbid])
+
+                with open(files[taxid], 'w') as fp:
+                    _choose_output_format(server, taxid_seqfeatures,
+                                          feature_type, output_format,
+                                          ofile=fp, bioentries=None)
+        else:
+            final_seqfeatures = get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()])
+            _choose_output_format(server, final_seqfeatures, feature_type, output_format)
 
 
 @export.command()
