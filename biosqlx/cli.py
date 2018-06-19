@@ -16,16 +16,33 @@ from biosqlx.util import print_feature_qv_csv, \
         get_seqfeature_ids_from_qv, \
         get_bioseqid_for_seqfeature
 from biosqlx.taxon_tree import TaxonTree
+from biosqlx.biosqlx import CustomDBLoader
 
 
 # global server object to be initialized by the main command
 # and utilized by all of the subcommands
 server = None
 
+
+def _check_tax(server, taxonomy):
+    rows = get_bioentries_from_taxonomy(server, taxonomy)
+    if len(rows) == 0:
+        click.echo("\nThere does not appear to be any sequences associated with\n"
+                "the taxonomy provided. If you used a taxonomy name, make sure\n"
+                "it is spelled correctly. And remember that it must be the complete name\n"
+                "for a particular rank, for example 'Deltaproteo' will match nothing\n"
+                "it has to be 'Deltaproteobacteria'.\n"
+                "Don't forget to add 'Candidatus ' to the begining of some names\n"
+                "or the strain designation for a species. If you used an NCBI taxonomy ID, make\n"
+                "sure that it is correct by double checking on the NCBI taxonomy website.", file=sys.stderr)
+        sys.exit(1)
+    else:
+        return rows
+
+
 @click.group()
 @click.version_option()
 @click.option('-d', '--database', help='name of premade biosql database', default='biosqldb', show_default=True)
-@click.option('-D', '--database-name', help='limit the extracted sequences from this namespace', default=None)
 @click.option('-r', '--driver', help='Python database driver to use (must be installed separately)',
         type=click.Choice(["MySQLdb", "psycopg2", "sqlite3"]), default='psycopg2', show_default=True)
 @click.option('-p', '--port', help='post to connect to on the host',
@@ -66,8 +83,9 @@ def add():
         'this taxonomy ID will be used as the parent taxonomy for the novel lineages. '
         'An error will occur if this taxid is not present in the database and --lookup-taxonomy is false.',
         default=None)
+@click.option('-D', '--database-name', help='limit the extracted sequences from this namespace', default=None)
 @click.argument('new_taxons', nargs=-1 )
-def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, new_taxons):
+def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, database_name, new_taxons):
     '''Add new sequences to the database.
 
         The New_taxons arguments allow you to specify novel taxonomies
@@ -83,6 +101,93 @@ def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, new_taxons):
         e.g. ANME-2ab:family ANME-2b:genus ANME-hr1:species
 
     '''
+    def _add_taxid(inIter, taxid):
+        inIter.annotations['ncbi_taxid'] = taxid
+        return inIter
+
+    def _load_gff(db, gff_file, fasta_file, fetch_taxonomy=False, taxid=None):
+        from BCBio import GFF
+        with open(fasta_file) as seq_handle:
+            seq_dict = SeqIO.to_dict(SeqIO.parse(seq_handle, "fasta"))
+
+        saved = []
+        for rec in GFF.parse(gff_file, seq_dict ):
+            saved.append(add_taxid(rec, taxid))
+
+        db.load(saved, fetch_NCBI_taxonomy=fetch_taxonomy)
+
+    def _load_genbank(db, genbank_file, fetch_taxonomy=False, taxid=None):
+        with open(genbank_file) as fp:
+            saved = []
+            for rec in SeqIO.parse(fp, 'genbank' ):
+                rec = add_taxid(rec, taxid)
+                saved.append(rec)
+            db.load(saved, fetch_NCBI_taxonomy=fetch_taxonomy)
+
+    if database_name not in server.keys():
+        server.new_database(database_name)
+
+    db = server[database_name]
+
+    try:
+        if gff is not None and fasta is not None:
+            load_gff(db, gff, fasta, lookup_taxonomy, taxid)
+        elif args.genbank is not None:
+            load_genbank(db, genbank, lookup_taxonomy, taxid)
+    except:
+        server.adaptor.rollback()
+        click.echo("problem loading new records into database",
+                file=sys.stderr)
+        sys.exit(1)
+
+    if new_taxons:
+        taxon_tree = TaxonTree(server.adaptor)
+        nodes = taxon_tree.find_elements(ncbi_taxon_id=taxid)
+        if len(nodes) == 0:
+            # parent doesn't exist, error
+            click.echo("The supplied NCBI taxonomy id via -T "
+                    "does not appear to be valid. Cannot find "
+                    "it in the database. Use -t in conjunction "
+                    "to query NCBI servers and add this into "
+                    "the database.", file=sys.stderr)
+            sys.exit(1)
+        elif len(nodes) > 1:
+            # name insn't unique, error
+            click.echo("There is more than one taxon with the given "
+                    "identifier", file=sys.stderr)
+            for node in nodes:
+                ckick.echo(node, file=sys.stderr)
+            sys.exit(1)
+        else:
+            parent_node = nodes[0]
+
+        new_taxons = map(lambda x: x.split(":"), new_taxons)
+        for taxname, taxrank in new_taxons:
+            nodes = taxon_tree.find_elements(name=taxname)
+            if len(nodes) == 0:
+                # this guy doesn't exist yet, add him in
+                # and make it the new parent for the next round
+                parent_node = taxon_tree.add(taxname, 'scientific name',
+                        rank=taxrank, parent=parent_node)
+            elif len(nodes) > 1:
+                # name insn't unique, error
+                pass
+            else:
+                # this guy already exists
+                # so we shouldn't add him in again
+                parent_node = nodes[0]
+
+
+        if fasta is not None:
+            gen = SeqIO.parse(fasta, 'fasta')
+        elif args.genbank is not None:
+            gen = SeqIO.parse(genbank, 'genbank')
+
+        for rec in gen:
+            server.adaptor.execute('UPDATE bioentry SET taxon_id = %s WHERE bioentry_id = %s',
+                    (parent_node._id, db.adaptor.fetch_seqid_by_display_id(db.dbid, rec.name)))
+
+    server.commit()
 
 
 @main.group()
@@ -90,8 +195,103 @@ def modify():
     '''Modify existing data in the database'''
 
 @modify.command()
-def annotation():
+@click.option('-i', '--input', help='provide text file, tab delimited, '
+        'where the first column is the name of the sequence feature and '
+        'the following columns are the values of the annotation that you '
+        'want to add. The first line must be a header line, which will '
+        'be used as the name of the qualifier for the seqfeature.')
+@click.option('-g', '--gff', help='provide a gff3 formatted file whose '
+        'attributes will be added to existing sequence features. Only the '
+        'information in the last column of the gff file will be utilized '
+        'so you must make sure that either the ID or locus_tag qualifiers '
+        'are present in the gff file. If both are present then ID will be '
+        'preferred over locus_tag. If neither are present then the record '
+        'will be skipped. Make sure that the ID or locus_tag are unique '
+        '(and present) in the database otherwise the attributes will not '
+        'be loaded.')
+@click.option('-s', '--seqfeature', help='The first column of the input '
+        'file is the seqfeature id used by the database. Does not apply '
+        'when using a gff file as input', is_flag=True, default=False)
+@click.option('--replace', help='replace any existing annotations for the '
+        'given qualifiers', is_flag=True, default=False)
+@click.option('--key', help='name of the column that contains a unique '
+        'identifier for the seqfeature. e.g. locus_tag', required=True)
+def annotation(infile, gff, seqfeature, replace, key):
     '''Change of add in annotations to existing sequences'''
+
+    def _parse_input(infile, key):
+        mapping = {}
+        with open(infile) as fp:
+            reader = csv.DictReader(fp, delimiter="\t")
+            for row in reader:
+                mapping[(key, row[key])] = {}
+                for k, v in row.items():
+                    if k != key:
+                        try:
+                            mapping[(key, row[key])][k].append(v)
+                        except KeyError:
+                            mapping[(key, row[key])][k] = [v]
+        return mapping
+
+    def _parse_gff(infile):
+        from BCBio import GFF
+        mapping = {}
+        with open(infile) as fp:
+            for rec in GFF.parse(fp):
+                for feature in rec.features:
+                    try:
+                        protein_id = feature.qualifiers['ID'][0]
+                        mapping[('ID', protein_id)] = feature.qualifiers
+                    except KeyError:
+                        try:
+                            protein_id = feature.qualifiers['locus_tag'][0]
+                            mapping[('locus_tag', protein_id)] = feature.qualifiers
+                        except KeyError:
+                            pass
+        return mapping
+
+
+    db = server[list(server.keys())[0]]
+
+    if infile is not None:
+        mapping = _parse_input(args.input, args.key)
+    else:
+        mapping = _parse_gff(args.gff)
+
+    # this may be a little tricky depending on how the database is set up
+    # since a bioentry is equivelent to a genbank file but genbank files could
+    # be created from a whole chromosome or from an individual protein.
+    # If it is from a single protein then the protein ID will be the bioentry_id
+    # but if it is from a whole genome then it will be a seqfeature_id
+    db_loader = CustomDBLoader(db.adaptor, db.dbid, False)
+
+    for (term_name, protein), values in mapping.items():
+        # Start by looking for bioentries that have the name
+        if not seqfeature:
+            seqfeature_id = get_seqfeature_id_from_qv(db, term_name, protein)
+        else:
+            seqfeature_id = int(protein)
+        # now add in our qualifier and value onto that seqfeature
+        if replace:
+            for qualifier in values.keys():
+                if qualifier == 'db_xref':
+                    click.echo('Cannot remove any current db_xref, '
+                               'you must do this manually for seqfeature {}'.format(seqfeature_id),
+                                                                                    file=sys.stderr)
+                else:
+                    db.adaptor.execute("DELETE FROM seqfeature_qualifier_value WHERE term_id = \
+                                (SELECT term_id FROM term WHERE ontology_id = \
+                                    (SELECT ontology_id FROM ontology WHERE name = 'Annotation Tags')\
+                                AND name = %s)\
+                            AND seqfeature_id = %s", (qualifier, seqfeature_id))
+
+        try:
+            db_loader._load_seqfeature_qualifiers(values, seqfeature_id)
+        except:
+            click.echo("Fatal Error: failed to load {} with values {}".format(protein, values), file=sys.stderr)
+            click.echo("Check the input file for possible errors", file=sys.stderr)
+            sys.exit(1)
+    server.commit()
 
 @main.group()
 def export():
@@ -131,22 +331,6 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
         feature_type = ['CDS']
     elif output_format == 'feat-nucl':
         feature_type = ['CDS', 'rRNA', 'tRNA']
-
-    def _check_tax(server, taxonomy):
-        rows = get_bioentries_from_taxonomy(server, taxonomy)
-        if len(rows) == 0:
-            click.echo("\nThere does not appear to be any sequences associated with\n"
-                    "the taxonomy provided. If you used a taxonomy name, make sure\n"
-                    "it is spelled correctly. And remember that it must be the complete name\n"
-                    "for a particular rank, for example 'Deltaproteo' will match nothing\n"
-                    "it has to be 'Deltaproteobacteria'.\n"
-                    "Don't forget to add 'Candidatus ' to the begining of some names\n"
-                    "or the strain designation for a species. If you used an NCBI taxonomy ID, make\n"
-                    "sure that it is correct by double checking on the NCBI taxonomy website.", file=sys.stderr)
-            sys.exit(1)
-        else:
-            return rows
-
 
     def _make_file_mapping(server, dbids):
         files = {}
