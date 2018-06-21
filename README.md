@@ -12,7 +12,6 @@ way, they were designed to model the data created by the SIPROS program.
 
 
 ## Command line    
-
 There is a main script `biosqlx` that serves as the main extry point
 for quickly accessing information in the database. There are a number
 of subcommands that allow you to add, modify or export information from
@@ -30,6 +29,24 @@ few options that let you change how to connect to the database.
 * `-P`: Password for the user to login to the database
 * `-H`: The host name that the database can be found on
 * `-p`: The port on the host that the database is found on
+
+#### Config file
+It's onerous to keep adding in the database user and password for every
+command. To alleviate this, `biosqlx` can use a configuration file to
+store sensitive data like the user name and password. Create a file in
+your home directory called ".biosqlx.cfg" and add in the following lines
+replacing the template variables:
+
+```
+BIOSQLX_USER=<your_username>
+BIOSQLX_PASSWORD=<your_password>
+```
+
+now change the permisions of that file so only you can read or write to that file
+
+```
+chmod 600 ~/.biosqlx.cfg
+```
 
 ### `biosqlx export sequence`
 This subcommand allows you to slice and dice the sequence data using
