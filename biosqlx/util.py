@@ -62,7 +62,7 @@ def get_bioentries_from_taxonomy(server, taxid):
         tax_name = True
 
     if not tax_name:
-        print("interpreting as an NCBI taxon ID...", file=sys.stderr)
+        #print("interpreting as an NCBI taxon ID...", file=sys.stderr)
         taxon_id_lookup_sql = "SELECT bioentry_id, taxon_id, biodatabase.name FROM bioentry JOIN "\
                 "biodatabase USING(biodatabase_id) WHERE taxon_id IN "\
                 "(SELECT DISTINCT include.taxon_id FROM taxon "\
@@ -72,7 +72,7 @@ def get_bioentries_from_taxonomy(server, taxid):
 
         rows = server.adaptor.execute_and_fetchall(taxon_id_lookup_sql, (ncbi_tax,))
     else:
-        print("interpreting as a taxon name...", file=sys.stderr)
+        #print("interpreting as a taxon name...", file=sys.stderr)
         taxon_name_lookup_sql = "SELECT bioentry_id, taxon_id, biodatabase.name FROM bioentry JOIN "\
                 "biodatabase USING(biodatabase_id) WHERE taxon_id IN "\
                 "(SELECT DISTINCT include.taxon_id FROM taxon "\
