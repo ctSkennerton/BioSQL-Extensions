@@ -69,7 +69,7 @@ def main(database, driver, port, user, password, host):
         password = os.environ.get("BIOSQLX_PASSWORD")
         if not password:
             password = getpass("Please enter the password for user " + \
-                    user + " on database " + database + ": ")
+                                user + " on database " + database + ": ")
 
     server = BioSeqDatabase.open_database(driver=driver,
                 db=database, user=user, host=host, passwd=password)
