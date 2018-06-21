@@ -381,7 +381,7 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
             # whole biosequence will be returned
             seqfeature_bioentries = get_bioseqid_for_seqfeature(server, sfids)
             printed_bioseqs = set()
-            for dbname, dbid, seqfeatureid in seqfeature_bioentries:
+            for dbname, dbid, seqfeatureid, taxid in seqfeature_bioentries:
                 if dbid not in printed_bioseqs:
                     db = server[dbname]
                     try:
