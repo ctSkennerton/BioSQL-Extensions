@@ -317,7 +317,7 @@ def export():
 @click.option('-s', '--split-species', help='when there are multiple species to '
         'be returned, split them into separate files, based on their name, '
         'instead of printing to stdout', is_flag=True, default=False)
-@click.option('-t', '--feature-type', help='restrict the results to feature '
+@click.option('-T', '--feature-type', help='restrict the results to feature '
         'type e.g. rRNA, tRNA, CDS. This option can be specified multiple '
         'times for multiple types. This option is only used when the ouput format is '
         'feat-nucl or feat-prot, inwhich case the default values will be: CDS, tRNA, rRNA '
