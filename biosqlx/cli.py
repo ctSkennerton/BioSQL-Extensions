@@ -49,7 +49,7 @@ def _check_tax(server, taxonomy):
 @click.option('-p', '--port', help='post to connect to on the host',
         default=5432, show_default=True)
 @click.option('-u', '--user', help='database user name',
-        default=getuser(), show_default=True)
+        default=None, show_default=True)
 @click.option('-P','--password', help='database password for user')
 @click.option('-H', '--host', help='host to connect to',
         default='localhost', show_default=True)
@@ -57,16 +57,19 @@ def main(database, driver, port, user, password, host):
     """Console script for biosqlx."""
     global server
 
+    # look in the users home directory for a config file
     dotenv_path = os.path.join(os.path.expanduser("~"), '.biosqlx.cfg')
     # load up the entries as environment variables
     load_dotenv(dotenv_path)
 
-    user = os.environ.get("BIOSQLX_USER", getuser())
-    password = os.environ.get("BIOSQLX_PASSWORD")
+    if not user:
+        user = os.environ.get("BIOSQLX_USER", getuser())
 
-    if password is None:
-        password = getpass("Please enter the password for user " + \
-                user + " on database " + database + ": ")
+    if not password:
+        password = os.environ.get("BIOSQLX_PASSWORD")
+        if not password:
+            password = getpass("Please enter the password for user " + \
+                    user + " on database " + database + ": ")
 
     server = BioSeqDatabase.open_database(driver=driver,
                 db=database, user=user, host=host, passwd=password)
