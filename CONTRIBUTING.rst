@@ -15,7 +15,7 @@ Types of Contributions
 Report Bugs
 ~~~~~~~~~~~
 
-Report bugs at https://github.com/ctSkennerton/biosqlx/issues.
+Report bugs at https://github.com/ctSkennerton/BioSQL-Extensions/issues.
 
 If you are reporting a bug, please include:
 
@@ -45,7 +45,7 @@ articles, and such.
 Submit Feedback
 ~~~~~~~~~~~~~~~
 
-The best way to send feedback is to file an issue at https://github.com/ctSkennerton/biosqlx/issues.
+The best way to send feedback is to file an issue at https://github.com/ctSkennerton/BioSQL-Extensions/issues.
 
 If you are proposing a feature:
 
@@ -59,15 +59,15 @@ Get Started!
 
 Ready to contribute? Here's how to set up `biosqlx` for local development.
 
-1. Fork the `biosqlx` repo on GitHub.
+1. Fork the `BioSQL-Extensions` repo on GitHub.
 2. Clone your fork locally::
 
-    $ git clone git@github.com:your_name_here/biosqlx.git
+    $ git clone git@github.com:your_name_here/BioSQL-Extensions.git
 
 3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed, this is how you set up your fork for local development::
 
     $ mkvirtualenv biosqlx
-    $ cd biosqlx/
+    $ cd BioSQL-Extensions/
     $ python setup.py develop
 
 4. Create a branch for local development::
@@ -102,8 +102,8 @@ Before you submit a pull request, check that it meets these guidelines:
 2. If the pull request adds functionality, the docs should be updated. Put
    your new functionality into a function with a docstring, and add the
    feature to the list in README.rst.
-3. The pull request should work for Python 2.7, 3.4, 3.5 and 3.6, and for PyPy. Check
-   https://travis-ci.org/ctSkennerton/biosqlx/pull_requests
+3. The pull request should work for Python 3.4, 3.5 and 3.6, and for PyPy. Check
+   https://travis-ci.org/ctSkennerton/BioSQL-Extensions/pull_requests
    and make sure that the tests pass for all supported Python versions.
 
 Tips
