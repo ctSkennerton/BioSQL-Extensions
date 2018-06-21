@@ -214,5 +214,6 @@ This may not be what you want, say if the original annotation is
 incorrect; in this case use the ``--replace`` flag to the script.
 
 ::
+
     biosqlx modify annotation -i annotations.tsv --key seqfeature_id
     biosqlx modify annotation -i annotations.tsv --replace --key locus_tag
