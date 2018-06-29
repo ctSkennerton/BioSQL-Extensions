@@ -210,17 +210,17 @@ def get_seqfeature_ids_from_qv(db, qualifier, value, namespace=None, fuzzy=False
         try:
             dbname, accession = value.split(':')
             if namespace is not None:
-                sql = r'SELECT seqfeature_id FROM seqfeature_dbxref '
-                        'JOIN dbxref ON dbxref.dbxref_id = seqfeature_dbxref.dbxref_id '
-                        'JOIN seqfeature ON seqfeature_dbxref.seqfeature_id = seqfeature.seqfeature_id '
-                        'JOIN bioentry ON bioentry.bioentry_id = seqfeature.bioentry_id '
-                        'JOIN biodatabase ON biodatabase.biodatabase_id = bioentry.biodatabase_id '
-                        'WHERE dbxref.dbname = %s AND dbxref.accession = %s AND biodatabase.name = %s'
+                sql = 'SELECT seqfeature_id FROM seqfeature_dbxref ' \
+                      'JOIN dbxref ON dbxref.dbxref_id = seqfeature_dbxref.dbxref_id ' \
+                      'JOIN seqfeature ON seqfeature_dbxref.seqfeature_id = seqfeature.seqfeature_id ' \
+                      'JOIN bioentry ON bioentry.bioentry_id = seqfeature.bioentry_id ' \
+                      'JOIN biodatabase ON biodatabase.biodatabase_id = bioentry.biodatabase_id ' \
+                      'WHERE dbxref.dbname = %s AND dbxref.accession = %s AND biodatabase.name = %s'
                 col0 = db.adaptor.execute_and_fetch_col0(sql, (dbname, accession, namespace))
             else:
-                sql = r'SELECT seqfeature_id FROM seqfeature_dbxref '
-                        'JOIN dbxref ON dbxref.dbxref_id = seqfeature_dbxref.dbxref_id '
-                        'WHERE dbxref.dbname = %s AND dbxref.accession = %s'
+                sql = 'SELECT seqfeature_id FROM seqfeature_dbxref ' \
+                      'JOIN dbxref ON dbxref.dbxref_id = seqfeature_dbxref.dbxref_id ' \
+                      'WHERE dbxref.dbname = %s AND dbxref.accession = %s'
                 col0 = db.adaptor.execute_and_fetch_col0(sql, (dbname, accession))
         except ValueError:
             raise DbInputError('''Error: value does not contain both a database name and value
@@ -232,26 +232,26 @@ and the second part is the value in that crossreferenced database. The offending
     else:
         if fuzzy:
             if namespace is not None:
-                sql = r'SELECT qv.seqfeature_id FROM seqfeature_qualifier_value qv '
-                       'JOIN seqfeature s ON qv.seqfeature_id=s.seqfeature_id '
-                       'JOIN bioentry b ON b.bioentry_id=s.bioentry_id '
-                       'JOIN term t ON t.term_id=qv.term_id '
-                       'JOIN biodatabase d ON d.biodatabase_id=b.biodatabase_id '
-                       'WHERE t.name = %s AND qv.value LIKE %s AND d.name = %s'
+                sql = 'SELECT qv.seqfeature_id FROM seqfeature_qualifier_value qv ' \
+                      'JOIN seqfeature s ON qv.seqfeature_id=s.seqfeature_id ' \
+                      'JOIN bioentry b ON b.bioentry_id=s.bioentry_id ' \
+                      'JOIN term t ON t.term_id=qv.term_id ' \
+                      'JOIN biodatabase d ON d.biodatabase_id=b.biodatabase_id ' \
+                      'WHERE t.name = %s AND qv.value LIKE %s AND d.name = %s'
             else:
-                sql = r'SELECT seqfeature_id FROM seqfeature_qualifier_value '
-                       'JOIN term USING(term_id) WHERE term.name = %s AND value LIKE %s'
+                sql = 'SELECT seqfeature_id FROM seqfeature_qualifier_value ' \
+                      'JOIN term USING(term_id) WHERE term.name = %s AND value LIKE %s'
         else:
             if namespace is not None:
-                sql = r'SELECT qv.seqfeature_id FROM seqfeature_qualifier_value qv '
-                       'JOIN seqfeature s ON qv.seqfeature_id=s.seqfeature_id '
-                       'JOIN bioentry b ON b.bioentry_id=s.bioentry_id '
-                       'JOIN term t ON t.term_id=qv.term_id '
-                       'JOIN biodatabase d ON d.biodatabase_id=b.biodatabase_id '
-                       'WHERE t.name = %s AND qv.value = %s AND d.name = %s'
+                sql = 'SELECT qv.seqfeature_id FROM seqfeature_qualifier_value qv ' \
+                      'JOIN seqfeature s ON qv.seqfeature_id=s.seqfeature_id ' \
+                      'JOIN bioentry b ON b.bioentry_id=s.bioentry_id ' \
+                      'JOIN term t ON t.term_id=qv.term_id ' \
+                      'JOIN biodatabase d ON d.biodatabase_id=b.biodatabase_id ' \
+                      'WHERE t.name = %s AND qv.value = %s AND d.name = %s'
             else:
-                sql = r'SELECT seqfeature_id FROM seqfeature_qualifier_value '
-                       'JOIN term USING(term_id) WHERE term.name = %s AND value = %s'
+                sql = 'SELECT seqfeature_id FROM seqfeature_qualifier_value ' \
+                      'JOIN term USING(term_id) WHERE term.name = %s AND value = %s'
 
 
         if namespace is not None:
