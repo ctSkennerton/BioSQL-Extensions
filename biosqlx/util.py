@@ -13,10 +13,10 @@ class OrthologData(object):
         self.gene = []
         self.genomes = {}
 
-class OrphanDbError(Exception):
+class DbError(Exception):
     pass
 
-class OrphanDbInputError(OrphanDbError):
+class DbInputError(DbError):
     def __init__(self, message):
         self.message = message
 
@@ -193,15 +193,37 @@ def get_seqfeature_id_from_qv(db, qualifier, value, biodatabase_id=None):
     return rows[0][0]
 
 
-def get_seqfeature_ids_from_qv(db, qualifier, value, biodatabase_id=None, fuzzy=False):
+def get_seqfeature_ids_from_qv(db, qualifier, value, namespace=None, fuzzy=False):
+    ''' Return a set of seqfeatures based on a qualifier, value and database.
+
+    :param db: Ther server instance
+    :param qualifier: text of the qualifier name to search for. eg. product, gene
+    :param value: text of the value of the qualifier. eg. Hydrogenase, mcrA
+    :param namespace: The name of the sub-database to restrict matches to.
+        Corresponds to biodatabase.name in the SQL schema.
+    :param fuzzy: Set to True to use the LIKE command matching rather than exact matching.
+    :returns: list of seqfeature_ids (integers)
+    :raises DbInputError
+    '''
     if qualifier == 'db_xref':
         # need to handle the special instance of qualifiers that refer to other databases
         try:
             dbname, accession = value.split(':')
-            sql = r'select seqfeature_id from seqfeature_dbxref join dbxref on dbxref.dbxref_id = seqfeature_dbxref.dbxref_id where dbxref.dbname = %s and dbxref.accession = %s'
-            col0 = db.adaptor.execute_and_fetch_col0(sql, (dbname, accession))
+            if namespace is not None:
+                sql = r'SELECT seqfeature_id FROM seqfeature_dbxref '
+                        'JOIN dbxref ON dbxref.dbxref_id = seqfeature_dbxref.dbxref_id '
+                        'JOIN seqfeature ON seqfeature_dbxref.seqfeature_id = seqfeature.seqfeature_id '
+                        'JOIN bioentry ON bioentry.bioentry_id = seqfeature.bioentry_id '
+                        'JOIN biodatabase ON biodatabase.biodatabase_id = bioentry.biodatabase_id '
+                        'WHERE dbxref.dbname = %s AND dbxref.accession = %s AND biodatabase.name = %s'
+                col0 = db.adaptor.execute_and_fetch_col0(sql, (dbname, accession, namespace))
+            else:
+                sql = r'SELECT seqfeature_id FROM seqfeature_dbxref '
+                        'JOIN dbxref ON dbxref.dbxref_id = seqfeature_dbxref.dbxref_id '
+                        'WHERE dbxref.dbname = %s AND dbxref.accession = %s'
+                col0 = db.adaptor.execute_and_fetch_col0(sql, (dbname, accession))
         except ValueError:
-            raise OrphanDbInputError('''Error: value does not contain both a database name and value
+            raise DbInputError('''Error: value does not contain both a database name and value
 Hint: When using db_xref as the input qualifier, the value must contain two terms separated
 by a colon (:) character, for example ko:K03388, where the first part is the database name
 and the second part is the value in that crossreferenced database. The offending value is: ''' + value)
@@ -209,24 +231,37 @@ and the second part is the value in that crossreferenced database. The offending
 
     else:
         if fuzzy:
-            if biodatabase_id is not None:
-                sql = r'select qv.seqfeature_id from seqfeature_qualifier_value qv join seqfeature s on qv.seqfeature_id=s.seqfeature_id join bioentry b on b.bioentry_id=s.bioentry_id join term t on t.term_id=qv.term_id join biodatabase d on d.biodatabase_id=b.biodatabase_id where t.name = %s and qv.value like %s and d.name = %s'
+            if namespace is not None:
+                sql = r'SELECT qv.seqfeature_id FROM seqfeature_qualifier_value qv '
+                       'JOIN seqfeature s ON qv.seqfeature_id=s.seqfeature_id '
+                       'JOIN bioentry b ON b.bioentry_id=s.bioentry_id '
+                       'JOIN term t ON t.term_id=qv.term_id '
+                       'JOIN biodatabase d ON d.biodatabase_id=b.biodatabase_id '
+                       'WHERE t.name = %s AND qv.value LIKE %s AND d.name = %s'
             else:
-                sql = r'select seqfeature_id from seqfeature_qualifier_value join term using(term_id) where term.name = %s and value like %s'
+                sql = r'SELECT seqfeature_id FROM seqfeature_qualifier_value '
+                       'JOIN term USING(term_id) WHERE term.name = %s AND value LIKE %s'
         else:
-            if biodatabase_id is not None:
-                sql = r'select qv.seqfeature_id from seqfeature_qualifier_value qv join seqfeature s on qv.seqfeature_id=s.seqfeature_id join bioentry b on b.bioentry_id=s.bioentry_id join term t on t.term_id=qv.term_id join biodatabase d on d.biodatabase_id=b.biodatabase_id where t.name = %s and qv.value = %s and d.name = %s'
+            if namespace is not None:
+                sql = r'SELECT qv.seqfeature_id FROM seqfeature_qualifier_value qv '
+                       'JOIN seqfeature s ON qv.seqfeature_id=s.seqfeature_id '
+                       'JOIN bioentry b ON b.bioentry_id=s.bioentry_id '
+                       'JOIN term t ON t.term_id=qv.term_id '
+                       'JOIN biodatabase d ON d.biodatabase_id=b.biodatabase_id '
+                       'WHERE t.name = %s AND qv.value = %s AND d.name = %s'
             else:
-                sql = r'select seqfeature_id from seqfeature_qualifier_value join term using(term_id) where term.name = %s and value = %s'
+                sql = r'SELECT seqfeature_id FROM seqfeature_qualifier_value '
+                       'JOIN term USING(term_id) WHERE term.name = %s AND value = %s'
 
 
-        if biodatabase_id is not None:
+        if namespace is not None:
             col0 = db.adaptor.execute_and_fetch_col0(sql, (qualifier, value, biodatabase_id))
         else:
             col0 = db.adaptor.execute_and_fetch_col0(sql, (qualifier, value))
 
     if len(col0) == 0:
-        raise ValueError("There are no seqfeature associated with qualifier={} and value={}".format(qualifier, value))
+        raise ValueError("There are no seqfeature associated with "
+                         "qualifier={} and value={}".format(qualifier, value))
 
     return col0
 
@@ -353,7 +388,7 @@ def get_kegg_id_from_name(server, orthology, brite='KEGG'):
     sql = 'select term_id from term where name like ?  and ontology_id = (select ontology_id from ontology where name = %s)'
     rows = server.adaptor.execute_and_fetchall(sql, ('%'+orthology+'%', brite))
     if len(rows) != 1:
-        raise OrphanDbError('That orthology either doesn\'t exist or isn\'t unique')
+        raise DbError('That orthology either doesn\'t exist or isn\'t unique')
 
     return rows[0][0]
 
