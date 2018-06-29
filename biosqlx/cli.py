@@ -79,7 +79,6 @@ def main(database, driver, port, user, password, host):
 @main.group()
 def add():
     '''Add information to the database'''
-    click.echo("help")
 
 @add.command()
 @click.option('-f', '--fasta', help='fasta file to add into the database')
@@ -124,7 +123,7 @@ def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, database_name, new_tax
 
         saved = []
         for rec in GFF.parse(gff_file, seq_dict ):
-            saved.append(add_taxid(rec, taxid))
+            saved.append(_add_taxid(rec, taxid))
 
         db.load(saved, fetch_NCBI_taxonomy=fetch_taxonomy)
 
@@ -132,7 +131,7 @@ def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, database_name, new_tax
         with open(genbank_file) as fp:
             saved = []
             for rec in SeqIO.parse(fp, 'genbank' ):
-                rec = add_taxid(rec, taxid)
+                rec = _add_taxid(rec, taxid)
                 saved.append(rec)
             db.load(saved, fetch_NCBI_taxonomy=fetch_taxonomy)
 
@@ -143,10 +142,11 @@ def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, database_name, new_tax
 
     try:
         if gff is not None and fasta is not None:
-            load_gff(db, gff, fasta, lookup_taxonomy, taxid)
-        elif args.genbank is not None:
-            load_genbank(db, genbank, lookup_taxonomy, taxid)
-    except:
+            _load_gff(db, gff, fasta, lookup_taxonomy, taxid)
+        elif genbank is not None:
+            _load_genbank(db, genbank, lookup_taxonomy, taxid)
+    except e:
+        click.echo(e)
         server.adaptor.rollback()
         click.echo("problem loading new records into database",
                 file=sys.stderr)
@@ -192,7 +192,7 @@ def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, database_name, new_tax
 
         if fasta is not None:
             gen = SeqIO.parse(fasta, 'fasta')
-        elif args.genbank is not None:
+        elif genbank is not None:
             gen = SeqIO.parse(genbank, 'genbank')
 
         for rec in gen:
@@ -266,9 +266,9 @@ def annotation(infile, gff, seqfeature, replace, key):
     db = server[list(server.keys())[0]]
 
     if infile is not None:
-        mapping = _parse_input(args.input, args.key)
+        mapping = _parse_input(infile, key)
     else:
-        mapping = _parse_gff(args.gff)
+        mapping = _parse_gff(gff)
 
     # this may be a little tricky depending on how the database is set up
     # since a bioentry is equivelent to a genbank file but genbank files could
@@ -331,11 +331,12 @@ def export():
 @click.option('-t', '--taxonomy', help='supply a taxonomy name that will be extracted. '
         'If an integer is supplied it will be interpreted as an NCBI '
         'taxonomy id; otherwise it will be interpreted as part of a taxonomy name (e.g. Proteobacteria)')
-def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value, taxonomy):
+@click.option('-D', '--database-name', help='limit the extracted sequences from this namespace', default=None)
+def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value, taxonomy, namespace):
     '''Extract information about sequences from the database'''
     if qualifier is None and value is None and taxonomy is None:
         click.echo("please provide at least -t (extract by taxonomy) or both -q & -v (qualifier and value)")
-        sys,exit(1)
+        sys.exit(1)
 
     if feature_type:
         feature_type = list(feature_type)
@@ -399,13 +400,16 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
     if taxonomy:
         rows = _check_tax(server, taxonomy)
         for dbid, taxon_id, dbname in rows:
+            if namespace is not None and dbname != namespace:
+                continue
             dbids[(dbid, dbname)] = taxon_id
 
     output_files = {}
 
     # selecting a qualifier and value is going to be a more specific search, so start there
     if qualifier and value:
-        seqfeature_ids = get_seqfeature_ids_from_qv(server, qualifier, value, fuzzy=fuzzy)
+        seqfeature_ids = get_seqfeature_ids_from_qv(server, qualifier, value,
+                                                    fuzzy=fuzzy, namespace=namespace)
 
         # if the output_format is just features and is all going to one output file then we
         # can move on here to printing
