@@ -167,6 +167,14 @@ that belong to desulfovibrio in the database
 
     biosqlx export sequence -t Desulfovibrio --split-species
 
+``biosqlx export taxonomy``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This subcommand will allow you to see the organsims currently in the
+database. The data is presented as either a hierarchical tree or as 
+a semicolon separated list of taxonomy strings. The ``--root`` option
+allows you to output only those organisms that fall under the named
+taxonomy.
+
 ``biosqlx modify``
 ------------------
 
@@ -228,3 +236,18 @@ incorrect; in this case use the ``--replace`` flag to the script.
 
     biosqlx modify annotation -i annotations.tsv --key seqfeature_id
     biosqlx modify annotation -i annotations.tsv --replace --key locus_tag
+
+``biosqlx add``
+---------------
+
+
+``biosqlx add sequence``
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is the main way to add in new datasets to the database.
+
+Specifiying an NCBI taxonomy
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Specifying new taxonomies
+^^^^^^^^^^^^^^^^^^^^^^^^^
