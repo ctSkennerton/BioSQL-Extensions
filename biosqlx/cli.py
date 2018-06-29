@@ -332,7 +332,7 @@ def export():
         'If an integer is supplied it will be interpreted as an NCBI '
         'taxonomy id; otherwise it will be interpreted as part of a taxonomy name (e.g. Proteobacteria)')
 @click.option('-D', '--database-name', help='limit the extracted sequences from this namespace', default=None)
-def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value, taxonomy, namespace):
+def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value, taxonomy, database_name):
     '''Extract information about sequences from the database'''
     if qualifier is None and value is None and taxonomy is None:
         click.echo("please provide at least -t (extract by taxonomy) or both -q & -v (qualifier and value)")
@@ -400,7 +400,7 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
     if taxonomy:
         rows = _check_tax(server, taxonomy)
         for dbid, taxon_id, dbname in rows:
-            if namespace is not None and dbname != namespace:
+            if database_name is not None and dbname != database_name:
                 continue
             dbids[(dbid, dbname)] = taxon_id
 
@@ -409,7 +409,7 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
     # selecting a qualifier and value is going to be a more specific search, so start there
     if qualifier and value:
         seqfeature_ids = get_seqfeature_ids_from_qv(server, qualifier, value,
-                                                    fuzzy=fuzzy, namespace=namespace)
+                                                    fuzzy=fuzzy, namespace=database_name)
 
         # if the output_format is just features and is all going to one output file then we
         # can move on here to printing
