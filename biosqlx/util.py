@@ -303,7 +303,7 @@ def extract_feature_sql(server, seqfeature_ids, type=['CDS', 'rRNA', 'tRNA'], qu
     for chunk in chunks(seqfeature_ids, 900):
         sql = "SELECT f.seqfeature_id AS gid, \
                       fl.strand,\
-                      substring(s.seq, COALESCE(fl.start_pos, 1), (COALESCE(fl.end_pos, s.length) - COALESCE(fl.start_pos, 1))+1) AS subseq\
+                      substr(s.seq, COALESCE(fl.start_pos, 1), (COALESCE(fl.end_pos, s.length) - COALESCE(fl.start_pos, 1))+1) AS subseq\
                FROM   seqfeature f \
                JOIN   term t ON f.type_term_id=t.term_id \
                JOIN   location fl USING(seqfeature_id) \
