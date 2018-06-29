@@ -61,11 +61,11 @@ that file
 
 
 ``biosqlx export``
-~~~~~~~~~~~~~~~~~~
+------------------
 
 
 ``biosqlx export sequence``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This subcommand allows you to slice and dice the sequence data using
 multiple filtering metrics, including the assigned taxonomy or the
@@ -166,6 +166,10 @@ that belong to desulfovibrio in the database
 ::
 
     biosqlx export sequence -t Desulfovibrio --split-species
+
+``biosqlx modify``
+------------------
+
 
 ``biosqlx modify annotation``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
