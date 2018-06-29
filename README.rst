@@ -15,7 +15,7 @@ porable way, they were designed to model the data created by the SIPROS
 program.
 
 Command line
-------------
+============
 
 There is a main script ``biosqlx`` that serves as the main extry point
 for quickly accessing information in the database. There are a number of
@@ -25,7 +25,7 @@ sequence data into the database, while ``biosqlx export sequence`` lets
 you extract data out.
 
 connecting to the database
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 The top level command ``biosqlx`` contains a few options that let you
 change how to connect to the database.
@@ -39,7 +39,7 @@ change how to connect to the database.
 -  ``-p``: The port on the host that the database is found on
 
 Config file
-^^^^^^^^^^^
+-----------
 
 It's onerous to keep adding in the database user and password for every
 command. To alleviate this, ``biosqlx`` can use a configuration file to
@@ -59,8 +59,13 @@ that file
 
     chmod 600 ~/.biosqlx.cfg
 
+
+``biosqlx export``
+~~~~~~~~~~~~~~~~~~
+
+
 ``biosqlx export sequence``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This subcommand allows you to slice and dice the sequence data using
 multiple filtering metrics, including the assigned taxonomy or the
