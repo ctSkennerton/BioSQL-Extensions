@@ -5,30 +5,59 @@
 
 
 import unittest
+from io import StringIO
 from click.testing import CliRunner
 
 from biosqlx import biosqlx
 from biosqlx import cli
 
 
-class TestBiosqlx(unittest.TestCase):
+class TestExportSequence(unittest.TestCase):
     """Tests for `biosqlx` package."""
 
     def setUp(self):
         """Set up test fixtures, if any."""
+        self.database_connection_params = ['-d', '/home/cts/local/BioSQL-Extensions/tests/test.db', '-r', 'sqlite3']
+        self.common_params = ['export', 'sequence']
 
     def tearDown(self):
         """Tear down test fixtures, if any."""
 
-    def test_000_something(self):
-        """Test something."""
-
-    def test_command_line_interface(self):
-        """Test the CLI."""
+    def test_taxonomy_feat_prot(self):
+        """Export from taxonomy as protein features."""
         runner = CliRunner()
-        result = runner.invoke(cli.main)
-        assert result.exit_code == 0
-        assert 'biosqlx.cli.main' in result.output
-        help_result = runner.invoke(cli.main, ['--help'])
-        assert help_result.exit_code == 0
-        assert '--help  Show this message and exit.' in help_result.output
+        result = runner.invoke(cli.main, self.database_connection_params + self.common_params + ['--taxonomy', 'Geobacter', '-o', 'feat-prot'])
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual('>', result.output[0])
+
+    def test_taxonomy_fasta(self):
+        """Export from taxonomy as fasta."""
+        runner = CliRunner()
+        result = runner.invoke(cli.main, self.database_connection_params + self.common_params + ['--taxonomy', 'Geobacter'])
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual('>', result.output[0])
+
+    def test_export_sequence_feat_nucl(self):
+        """Export from taxonomy as nucleotide features."""
+        runner = CliRunner()
+        result = runner.invoke(cli.main, self.database_connection_params + self.common_params + ['--taxonomy', 'Geobacter', '-o', 'feat-nucl'])
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual('>', result.output[0])
+
+    def test_export_sequence_genbank(self):
+        """Export from taxonomy as genbank."""
+        runner = CliRunner()
+        result = runner.invoke(cli.main, self.database_connection_params + self.common_params + ['--taxonomy', 'Geobacter', '-o', 'gb'])
+        self.assertEqual(result.exit_code, 0)
+        self.assertEqual('L', result.output[0])
+
+    def test_export_sequence_csv(self):
+        """Export from taxonomy as csv."""
+        runner = CliRunner()
+        result = runner.invoke(cli.main, self.database_connection_params + self.common_params + ['--taxonomy', 'Geobacter', '-o', 'csv'])
+        self.assertEqual(result.exit_code, 0)
+        f = StringIO(result.output)
+        line = next(f)
+        f.close()
+        self.assertEqual(True, ',' in line)
+
