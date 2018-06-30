@@ -3,7 +3,7 @@
 
 """Tests for `biosqlx` package."""
 
-
+import os
 import unittest
 from io import StringIO
 from click.testing import CliRunner
@@ -17,7 +17,8 @@ class TestExportSequence(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures, if any."""
-        self.database_connection_params = ['-d', '/home/cts/local/BioSQL-Extensions/tests/test.db', '-r', 'sqlite3']
+        sqlite3_db_file = os.path.join(os.path.dirname(__file__), 'test.db')
+        self.database_connection_params = ['-d', sqlite3_db_file, '-r', 'sqlite3']
         self.common_params = ['export', 'sequence']
 
     def tearDown(self):
