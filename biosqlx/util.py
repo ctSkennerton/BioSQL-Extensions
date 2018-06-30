@@ -119,9 +119,16 @@ def print_feature_qv_csv(server, sfids, outfile=sys.stdout):
         qv = {}
         for feat_chunk in chunks(seqfeature_ids, 900):
             feat_chunk2 = tuple(feat_chunk)
-            qual_select_sql = 'SELECT seqfeature_id, name, value FROM seqfeature_qualifier_value qv JOIN term t ON t.term_id = qv.term_id WHERE seqfeature_id IN ({})'.format(generate_placeholders(len(feat_chunk)))
+            qual_select_sql = 'SELECT seqfeature_id, name, value '\
+                    'FROM seqfeature_qualifier_value qv '\
+                    'JOIN term t ON t.term_id = qv.term_id '\
+                    'WHERE seqfeature_id IN ({})'.format(generate_placeholders(len(feat_chunk)))
 
-            taxonomy_sql = 'SELECT seqfeature_id, bioentry.name, biodatabase.name, lineage.lineage FROM seqfeature JOIN bioentry USING(bioentry_id) JOIN biodatabase USING(biodatabase_id) LEFT JOIN lineage ON taxon_id = lineage.id WHERE seqfeature_id IN ({})'.format(generate_placeholders(len(feat_chunk)))
+            taxonomy_sql = 'SELECT seqfeature_id, bioentry.name, biodatabase.name, lineage.lineage '\
+                    'FROM seqfeature JOIN bioentry USING(bioentry_id) '\
+                    'JOIN biodatabase USING(biodatabase_id) '\
+                    'LEFT JOIN lineage ON taxon_id = lineage.id '\
+                    'WHERE seqfeature_id IN ({})'.format(generate_placeholders(len(feat_chunk)))
             for seqfeature_id, contig, namespace, lineage in server.adaptor.execute_and_fetchall(taxonomy_sql, feat_chunk2):
                 try:
                     if lineage:
