@@ -10,15 +10,15 @@ from click.testing import CliRunner
 
 from biosqlx import biosqlx
 from biosqlx import cli
-
+from . import connection_parameters
 
 class TestExportSequence(unittest.TestCase):
     """Tests for `biosqlx` package."""
 
     def setUp(self):
         """Set up test fixtures, if any."""
-        sqlite3_db_file = os.path.join(os.path.dirname(__file__), 'test.db')
-        self.database_connection_params = ['-d', sqlite3_db_file, '-r', 'sqlite3']
+        testdb, dbdriver, dbuser, dbpassword, dbhost = connection_parameters()
+        self.database_connection_params = ['-d', testdb, '-r', dbdriver]
         self.common_params = ['export', 'sequence']
 
     def tearDown(self):
