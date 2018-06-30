@@ -74,15 +74,14 @@ sequence feature annotations.
 Output formats
 ^^^^^^^^^^^^^^
 
-There are currently five supported output formats: genbank, fasta,
-feat-prot, feat-nucl, csv. Genbank outputs a genbank formatted file for
-the sequence records, these are likely contigs or whole chromosomes.
-Fasta outputs the sequence information in fasta format. feat-prot and
-feat-nucl output the sequence features, like protein sequences, tRNAs,
-rRNAs. feat-prot outputs the translated features, so by default will
-only output the proteins. feat-nucl will output untranslated features
-and by default outputs the proteins, tRNAs and rRNAs. The csv format
-will output the annotations for all of the features.
+The currently supported output formats are: 
+
+1. gb (Genbank), outputs a genbank formatted file for
+   the sequence records, these are likely contigs or whole chromosomes.
+2. fasta, outputs the sequence information in fasta format. 
+3. feat-prot, outputs the translated sequence features (i.e. proteins/CDS)
+4. feat-nucl, outputs sequence features untranslated (i.e. proteins/CDS, tRNA, rRNA)
+5. csv, output the annotations for all of the features.
 
 Filtering on taxonomy
 ^^^^^^^^^^^^^^^^^^^^^
