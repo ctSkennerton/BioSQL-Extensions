@@ -262,7 +262,7 @@ and the second part is the value in that crossreferenced database. The offending
 
 
         if namespace is not None:
-            col0 = db.adaptor.execute_and_fetch_col0(sql, (qualifier, value, biodatabase_id))
+            col0 = db.adaptor.execute_and_fetch_col0(sql, (qualifier, value, namespace))
         else:
             col0 = db.adaptor.execute_and_fetch_col0(sql, (qualifier, value))
 
@@ -271,6 +271,21 @@ and the second part is the value in that crossreferenced database. The offending
                          "qualifier={} and value={}".format(qualifier, value))
 
     return col0
+
+
+def get_seqfeature_for_db(server, biodb):
+    '''Get seqfeatures from a namespace.
+
+    :param server: the biosql database connection
+    :param biodb: the name of the namespace (biodatabase.name column)
+    :returns: a list of seqfeature_id
+    '''
+    sql = "SELECT s.seqfeature_id FROM seqfeature s "\
+          "JOIN bioentry b USING(bioentry_id) "\
+          "JOIN biodatabase bd USING(biodatabase_id) WHERE bd.name = %s"
+
+    return server.adaptor.execute_and_fetch_col0(sql, (biodb,))
+
 
 def get_seqfeature_from_input(server, input_ids, type='ID'):
     ret = []

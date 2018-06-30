@@ -15,7 +15,8 @@ from biosqlx.util import print_feature_qv_csv, \
         get_bioentries_from_taxonomy, \
         get_seqfeature_ids_for_bioseqs, \
         get_seqfeature_ids_from_qv, \
-        get_bioseqid_for_seqfeature
+        get_bioseqid_for_seqfeature, \
+        get_seqfeature_for_db
 from biosqlx.taxon_tree import TaxonTree
 from biosqlx.biosqlx import CustomDBLoader
 from dotenv import load_dotenv, find_dotenv
@@ -334,9 +335,6 @@ def export():
 @click.option('-D', '--database-name', help='limit the extracted sequences from this namespace', default=None)
 def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value, taxonomy, database_name):
     '''Extract information about sequences from the database'''
-    if qualifier is None and value is None and taxonomy is None:
-        click.echo("please provide at least -t (extract by taxonomy) or both -q & -v (qualifier and value)")
-        sys.exit(1)
 
     if feature_type:
         feature_type = list(feature_type)
@@ -476,7 +474,7 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
                                               ofile=fp, bioentries=None)
             else:
                 _choose_output_format(server, final_seqfeatures, feature_type, output_format)
-    else:
+    elif taxonomy:
         # no qualifier and value
         if split_species:
             dbid_to_seqfeature_id = {}
@@ -498,7 +496,9 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
         else:
             final_seqfeatures = get_seqfeature_ids_for_bioseqs(server, [x[0] for x in dbids.keys()])
             _choose_output_format(server, final_seqfeatures, feature_type, output_format)
-
+    elif database_name:
+        final_seqfeatures = get_seqfeature_for_db(server, database_name)
+        _choose_output_format(server, final_seqfeatures, feature_type, output_format)
 
 @export.command()
 @click.option('-r', '--root', help='Specify the root of the output tree. '
