@@ -325,7 +325,7 @@ def export():
 @click.option('-t', '--taxonomy', help='supply a taxonomy name that will be extracted. '
         'If an integer is supplied it will be interpreted as an NCBI '
         'taxonomy id; otherwise it will be interpreted as part of a taxonomy name (e.g. Proteobacteria)')
-@click.option('-D', '--database-name', help='limit the extracted sequences from this namespace', default=None)
+@click.option('-D', '--database-name', help='Add the sequences to this namespace', default=None)
 def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value, taxonomy, database_name):
     '''Extract information about sequences from the database'''
 
