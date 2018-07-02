@@ -141,17 +141,10 @@ def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, database_name, new_tax
 
     db = server[database_name]
 
-    try:
-        if gff is not None and fasta is not None:
-            _load_gff(db, gff, fasta, lookup_taxonomy, taxid)
-        elif genbank is not None:
-            _load_genbank(db, genbank, lookup_taxonomy, taxid)
-    except e:
-        click.echo(e)
-        server.adaptor.rollback()
-        click.echo("problem loading new records into database",
-                file=sys.stderr)
-        sys.exit(1)
+    if gff is not None and fasta is not None:
+        _load_gff(db, gff, fasta, lookup_taxonomy, taxid)
+    elif genbank is not None:
+        _load_genbank(db, genbank, lookup_taxonomy, taxid)
 
     if new_taxons:
         taxon_tree = TaxonTree(server.adaptor)
