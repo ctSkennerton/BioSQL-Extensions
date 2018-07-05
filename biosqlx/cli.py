@@ -299,6 +299,46 @@ def annotation(infile, gff, seqfeature, replace, key):
             sys.exit(1)
     server.commit()
 
+@modify.command()
+@click.option('-m', '--move', nargs=2, metavar='CHILD PARENT', help='Provide two taxons, the child '\
+        'first then the parent. Each can be listed as either taxon name or an NCBI taxonomy ID. The '\
+        'child taxon will be moved underneath the parent node')
+@click.option('--dry-run', is_flag=True, default=False, help='do not actually change the taxonomy, '\
+        'only print how the changes will affect the tree')
+def taxonomy(move, dry_run):
+
+    tree = TaxonTree(server.adaptor)
+
+    if move is not None:
+        try:
+            int(move[0])
+            child = tree.find_elements(ncbi_taxon_id=move[0], name_class='scientific name')
+        except ValueError:
+            child = tree.find_elements(name=move[0], name_class='scientific name')
+
+        try:
+            int(move[1])
+            parent = tree.find_elements(ncbi_taxon_id=move[1], name_class='scientific name')
+        except ValueError:
+            parent = tree.find_elements(name=move[1], name_class='scientific name')
+
+
+        if len(child) == 1:
+            child = child[0]
+        else:
+            raise ValueError("{} is not a unique".format(move[0]))
+
+        if len(parent) == 1:
+            parent = parent[0]
+        else:
+            raise ValueError("{} is not a unique".format(move[1]))
+        tree.move(child, parent)
+
+    if dry_run:
+        print(tree)
+    else:
+        server.commit()
+
 @main.group()
 def export():
     '''Extract information from the database'''
