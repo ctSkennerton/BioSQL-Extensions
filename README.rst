@@ -239,7 +239,33 @@ incorrect; in this case use the ``--replace`` flag to the script.
 
 ``biosqlx modify taxonomy``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Add, change, or remove taxonomy IDs for sequences.
+Add, change, or remove taxonomy IDs for sequences or the taxonomy
+tree itself.
+
+Moving a taxon underneath a new parent
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The ``--move`` option allows you to change the structure of the tree by
+letting you move a taxon underneath a new parent node. Two arguments
+need to be given, first the child taxon (the one you want to move)
+and then the parent taxon::
+
+    biosqlx modify taxonomy --move "Methanosaeta harundinacea" Methanothrix
+
+The above command moves the species *Methanosaeta harundinacea* underneath
+the genus *Methanothrix*. Both of these taxonomy names must exist already
+in the database for the opperation to take place. Notice the quotes
+surronding *Methanosaeta harundinacea*, they are required whenever a
+taxon name is more than one space separated word.
+
+It is also possible to use an NCBI taxonomy ID instead of a taxon name
+for either the child or parent taxons. The example above could be written
+in any of the following ways::
+
+    biosqlx modify taxonomy --move 2223 2222
+    biosqlx modify taxonomy --move "Methanosaeta harundinacea" 2222
+    biosqlx modify taxonomy --move 2223 Methanothrix
+
+This requires that these taxons have the NCBI taxon ID associated with them.
 
 ``biosqlx add``
 ---------------
