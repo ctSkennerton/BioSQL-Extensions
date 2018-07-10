@@ -274,10 +274,74 @@ This requires that these taxons have the NCBI taxon ID associated with them.
 ``biosqlx add sequence``
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-This is the main way to add in new datasets to the database.
+This is the main way to add in new datasets to the database. You'll
+need to have the sequences at least run through an ORF caller, such as
+Prodigal, to add them into the database. Sequences can either be given
+as a genbank formatted file, using the ``-G`` option or be provided as a
+fasta plus gff files, using the ``-f`` and ``-g`` options. At this time
+plain fasta files without any ORFs called are not supported.
 
 Specifiying an NCBI taxonomy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Genbank files can contain information about the taxonomy of the organism,
+which can be used to populate the taxonomy in the database. By default,
+minimal taxonomy information is added to the database when a new sequence
+is added from a taxon that is not currently in the database. For example,
+if you were to load the genome of *Methanosaeta harundinacea* into the
+database, when no other archaea were present, then only the organism name
+will be stored. However, by specifying ``-t``, the taxonomy information
+will be downloaded from NCBI and the full taxonomy tree will be populated
+for the organism.
+
+The second option is to combine ``-t`` with ``-T`` to provide a NCBI
+taxon ID on the commandline. This is useful if the input file doesn't
+contain taxonomic information for the organism. For example, specifying
+a gff file with ``-g`` that does not contain taxonomy information. Or
+alternatively it can be used to overwrite the taxonomy information given
+in the input files.
 
 Specifying new taxonomies
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+Sometimes you may need to add novel organisms that are not currently in
+the NCBI taxonomy database. In this situation you can specify new taxons
+on the commandline using the format ``<taxon_name>:<taxon_rank>``, where
+``<taxon_name>`` is the new name that you with to add and ``<taxon_rank>``
+is a recognized taxonomic rank, such as "kingdom", "phylum", "genus",
+"species". It is also possible to specify multiple taxons in order of
+increasing specificity, for example::
+
+    biosqlx add sequence -T 2 -t -G GCA_000830255.1.gb Epsilonbacterota:phylum Campylobacteria:class Campylobacterales:order Thiovulaceae:family PC08-66:genus "Sulfuricurvum sp. PC08-66:species"
+
+Notice above that the new taxonomy is listed in increasing specificity
+(phylum, class, order, family, genus, species), and the quotes around
+the species name, since the name contains space characters. The ``-T 2``
+in this example means that the novel taxons listed on the commandline
+begin (or are children) of the NCBI taxon ID (in this case 2 equals
+bacteria). Any NCBI taxon can be given and the new taxons will be
+children::
+
+    biosqlx add sequence -T 94695 -t -G ANME_genome.gb ANME-2ab:family ANME-2b:genus "ANME sp. NewGenome:species"
+
+In this example the NCBI taxon, 94695 is the order *Methanosarcinales* and
+the new taxons specified on the commandline give a novel family, genus and
+species. The new taxons given on the commandline are also checked against
+the database when adding new sequences, so the following will also work::
+
+    biosqlx add sequence -T 94695 -t -G ANME_genome2.gb ANME-2ab:family ANME-2a:genus "ANME sp. AnotherNewGenome:species"
+
+In this case the novel family, ANME-2ab, is already in the database,
+from the previous example, and so is not added again. The genus and
+species are novel and will be added into the database.
+
+Be careful about how you arrange the new taxons on the commandline;
+they must be in the correct order as no checking is performed on the
+``<taxon_rank>`` itself. It's possible to specify something like
+the following: ``"ANME sp. AnotherNewGenome:species" ANME-2a:genus
+ANME-2ab:family`` which will not cause an error and actually produce
+the following tree::
+
+    #This is the opposite of what was intended 
+    ├ ANME sp. AnotherNewGenome (species)
+    ├── ANME-2a (genus)
+    ├──── ANME-2ab (family)
+     
