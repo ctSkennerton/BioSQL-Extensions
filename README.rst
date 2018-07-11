@@ -341,7 +341,7 @@ ANME-2ab:family`` which will not cause an error and actually produce
 the following tree::
 
     #This is the opposite of what was intended 
-    ├ ANME sp. AnotherNewGenome (species)
-    ├── ANME-2a (genus)
-    ├──── ANME-2ab (family)
+    ├── ANME sp. AnotherNewGenome (species)
+    │   ├── ANME-2a (genus)
+    │   │   └── ANME-2ab (family)
      
