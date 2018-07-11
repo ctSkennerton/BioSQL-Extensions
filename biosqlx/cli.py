@@ -95,7 +95,8 @@ def add():
         'this taxonomy ID will be used as the parent taxonomy for the novel lineages. '
         'An error will occur if this taxid is not present in the database and --lookup-taxonomy is false.',
         default=None)
-@click.option('-D', '--database-name', help='limit the extracted sequences from this namespace', default=None)
+@click.option('-D', '--database-name', help='Add the sequences to this namespace. '\
+        'If it doesn\'t yet exist, it will be created', default=None)
 @click.argument('new_taxons', nargs=-1 )
 def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, database_name, new_taxons):
     '''Add new sequences to the database.
