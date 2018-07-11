@@ -9,10 +9,44 @@ from io import StringIO
 from click.testing import CliRunner
 
 from Bio import SeqIO
+from BioSQL import BioSeqDatabase
 
 from biosqlx import biosqlx
 from biosqlx import cli
 from . import connection_parameters
+
+class TestAddSequence(unittest.TestCase):
+    """Tests `biosqlx add sequence`."""
+
+    def setUp(self):
+        """Set up test fixtures, if any."""
+        testdb, dbdriver, dbuser, dbpassword, dbhost = connection_parameters(create=True)
+
+        self.dbname = testdb
+        self.dbdriver = dbdriver
+        self.dbuser = dbuser
+        self.dbpassword = dbpassword
+        self.dbhost = dbhost
+
+        self.common_params = ['-d', testdb, '-r', dbdriver, 'add', 'sequence']
+
+    def tearDown(self):
+        """Tear down test fixtures, if any."""
+        os.remove(self.dbname)
+
+    def test_add_from_genbank(self):
+        """Add in sequences from a Genbank file."""
+        infile = os.path.join(os.path.dirname(__file__), 'test_files', 'GCF_000005845.2_ASM584v2_genomic.gbff')
+        runner = CliRunner()
+        result = runner.invoke(cli.main, self.common_params + ['-G', infile, '-D', 'test'])
+        self.assertEqual(result.exit_code, 0)
+
+        server = BioSeqDatabase.open_database(driver = self.dbdriver, user = self.dbuser,
+                             passwd = self.dbpassword, host = self.dbhost, db = self.dbname)
+
+        rows = server.adaptor.execute_and_fetchall("SELECT name FROM taxon_name where name_class = 'scientific name'")
+        self.assertEqual(rows, [('Escherichia coli str. K-12 substr. MG1655',)])
+        server.close()
 
 class TestExportSequence(unittest.TestCase):
     """Tests for `biosqlx` package."""
