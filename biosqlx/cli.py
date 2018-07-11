@@ -142,10 +142,25 @@ def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, database_name, new_tax
 
     db = server[database_name]
 
+    # sanity checking the input options
+    if (gff is not None) ^ (fasta is not None):
+        click.echo("Both the fasta file (-f) and the gff file (-g) must be specified",
+                file=sys.stderr)
+        sys.exit(1)
+
+    if (gff or fasta) and genbank:
+        click.echo("Cannot specify both a genbank file (-G) with a fasta '\
+                'file (-f) and gff file (-g)", file=sys.stderr)
+        sys.exit(1)
+
     if gff is not None and fasta is not None:
         _load_gff(db, gff, fasta, lookup_taxonomy, taxid)
     elif genbank is not None:
         _load_genbank(db, genbank, lookup_taxonomy, taxid)
+    else:
+        click.echo("No input files were provided. Please specify both a fasta '\
+                '(-f) and gff (-g) file, or a genbank file (-G)", file=sys.stderr)
+        sys.exit(1)
 
     if new_taxons:
         taxon_tree = TaxonTree(server.adaptor)
