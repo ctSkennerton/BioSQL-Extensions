@@ -112,7 +112,7 @@ you just type 'vulgaris', no results will be returned.
 
 ::
 
-    biosqlx export sequence -o feat-prot 'Desulfovibrio vulgaris'
+    biosqlx export sequence -o feat-prot -t 'Desulfovibrio vulgaris'
 
 Note the single quotes around the organism name! This is important so
 that the name is properly input into the script. Any names that are
