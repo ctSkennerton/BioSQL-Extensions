@@ -2,6 +2,13 @@
 History
 =======
 
+0.4.0 (2018-08-09)
+------------------
+
+* Add in GFF3 output format to ``biosqlx export sequence``
+* Add ``biosqlx export namespace`` for getting basic info about each 
+  of the samples/namespaces/sub-databases/divisions in the database.
+
 0.3.0 (2018-07-11)
 ------------------
 

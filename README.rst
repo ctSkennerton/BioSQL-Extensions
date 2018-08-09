@@ -82,6 +82,8 @@ The currently supported output formats are:
 3. feat-prot, outputs the translated sequence features (i.e. proteins/CDS)
 4. feat-nucl, outputs sequence features untranslated (i.e. proteins/CDS, tRNA, rRNA)
 5. csv, output the annotations for all of the features.
+6. gff, output annotations as a gff3 formatted file. Just like the genbank
+   or fasta output formats, this will print the whole contig.
 
 Filtering on taxonomy
 ^^^^^^^^^^^^^^^^^^^^^
@@ -173,6 +175,12 @@ database. The data is presented as either a hierarchical tree or as
 a semicolon separated list of taxonomy strings. The ``--root`` option
 allows you to output only those organisms that fall under the named
 taxonomy.
+
+``biosqlx export namespace``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This will print the information about the various samples/namespaces
+present in the database.
 
 ``biosqlx modify``
 ------------------
@@ -344,4 +352,5 @@ the following tree::
     ├── ANME sp. AnotherNewGenome (species)
     │   ├── ANME-2a (genus)
     │   │   └── ANME-2ab (family)
-     
+
+
