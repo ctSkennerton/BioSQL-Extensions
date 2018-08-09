@@ -596,9 +596,9 @@ def taxonomy(root, output_format):
 def namespace():
     '''Print all of the namespaces/samples in the database
     '''
-    data = server.adaptor.execute_and_fetch_col0('select name from biodatabase')
-    for row in data:
-        print(row)
+    data = server.adaptor.execute_and_fetchall('select name, description from biodatabase')
+    for name, desc in data:
+        print(name, desc, sep='\t')
 
 
 #@main.group()
