@@ -13,7 +13,8 @@ with open('HISTORY.rst') as history_file:
 
 requirements = ['Click>=6.0',
         'biopython>=1.67',
-        'python-dotenv>=0.7']
+        'python-dotenv>=0.7',
+        'bcbio-gff>=0.6.4']
 
 setup_requirements = [ ]
 

@@ -365,8 +365,9 @@ def export():
         'Choices: fasta - fasta file of the contigs; gb - genbank file of the sequences; '
         'feat-prot - fasta file containing the translated coding sequences; '
         'feat-nucl - fasta file containing the untranslated coding sequences, '
-        'tRNAs and rRNAs; csv - csv file of annotations for the features',
-        type=click.Choice(['fasta', 'gb', 'feat-prot', 'feat-nucl', 'csv']), default='fasta')
+        'tRNAs and rRNAs; csv - csv file of annotations for the features; '
+        'gff - gff3 formatted features',
+        type=click.Choice(['fasta', 'gb', 'feat-prot', 'feat-nucl', 'csv', 'gff']), default='fasta')
 @click.option('-s', '--split-species', help='when there are multiple species to '
         'be returned, split them into separate files, based on their name, '
         'instead of printing to stdout', is_flag=True, default=False)
@@ -413,6 +414,8 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
                 tname += '.faa'
             elif output_format == 'csv':
                 tname += '.csv'
+            elif output_format == 'gff':
+                tname += '.gff'
             else:
                 tname += '.fna'
             files[v] = tname
@@ -421,6 +424,15 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
 
 
     def _choose_output_format(server, sfids, feature_type, output_format, ofile=sys.stdout, bioentries=None):
+        if output_format == 'gff':
+            try:
+                from BCBio import GFF
+            except ImportError:
+                print("Unable to export sequences as gff files; "
+                      "cannot find the BCBio-gff library. Check if "
+                      "it's installed and if not use `pip install bcbio-gff`.", file=sys.stderr)
+                sys.exit(1)
+
         if output_format == 'feat-prot':
             extract_feature_sql(server, sfids, type=feature_type, translate=True, file=ofile )
         elif output_format == 'feat-nucl':
@@ -428,20 +440,25 @@ def sequence(output_format, split_species, feature_type, fuzzy, qualifier, value
         elif output_format == 'csv':
             print_feature_qv_csv(server, sfids, outfile=ofile)
         else:
-            # the user wants the fasta or genbank options, in which case the
+            # the user wants the fasta, gff or genbank options, in which case the
             # whole biosequence will be returned
             seqfeature_bioentries = get_bioseqid_for_seqfeature(server, sfids)
             printed_bioseqs = set()
+            to_print = []
             for dbname, dbid, seqfeatureid, taxid in seqfeature_bioentries:
                 if dbid not in printed_bioseqs:
                     db = server[dbname]
                     try:
                         dbrec = db[dbid]
-                        SeqIO.write(dbrec, ofile, output_format)
+                        to_print.append(dbrec)
                     except KeyError:
                         pass
                     finally:
                         printed_bioseqs.add(dbid)
+            if output_format == 'gff':
+                GFF.write(to_print, ofile)
+            else:
+                SeqIO.write(to_print, ofile, output_format)
 
     dbids = {}
     if taxonomy:
