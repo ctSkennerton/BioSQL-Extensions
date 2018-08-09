@@ -217,7 +217,7 @@ def modify():
     '''Modify existing data in the database'''
 
 @modify.command()
-@click.option('-i', '--input', help='provide text file, tab delimited, '
+@click.option('-i', '--infile', help='provide text file, tab delimited, '
         'where the first column is the name of the sequence feature and '
         'the following columns are the values of the annotation that you '
         'want to add. The first line must be a header line, which will '
@@ -579,7 +579,14 @@ def taxonomy(root, output_format):
 @main.group()
 def info():
     '''Get information about the database'''
-    click.echo('bleg')
+
+@info.command()
+def namespace():
+    '''Print all of the namespaces in the database
+    '''
+    data = server.adaptor.execute_and_fetch_col0('select name from biodatabase')
+    for row in data:
+        print(row)
 
 
 if __name__ == "__main__":
