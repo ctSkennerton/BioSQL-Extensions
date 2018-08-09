@@ -592,18 +592,18 @@ def taxonomy(root, output_format):
             writer.writerow(row)
 
 
-
-@main.group()
-def info():
-    '''Get information about the database'''
-
-@info.command()
+@export.command()
 def namespace():
-    '''Print all of the namespaces in the database
+    '''Print all of the namespaces/samples in the database
     '''
     data = server.adaptor.execute_and_fetch_col0('select name from biodatabase')
     for row in data:
         print(row)
+
+
+#@main.group()
+#def info():
+#    '''Get information about the database'''
 
 
 if __name__ == "__main__":
