@@ -15,6 +15,78 @@ from biosqlx import biosqlx
 from biosqlx import cli
 from . import connection_parameters
 
+class TestModifySequenceTaxonomy(unittest.TestCase):
+    """Tests `biosqlx modify sequence_taxonomy`."""
+
+    def setUp(self):
+        """Set up test fixtures, if any."""
+        testdb, dbdriver, dbuser, dbpassword, dbhost = connection_parameters(create=True)
+
+        self.dbname = testdb
+        self.dbdriver = dbdriver
+        self.dbuser = dbuser
+        self.dbpassword = dbpassword
+        self.dbhost = dbhost
+
+        self.common_params = ['-d', testdb, '-r', dbdriver, 'modify', 'sequence_taxonomy']
+
+        server = BioSeqDatabase.open_database(driver = self.dbdriver, user = self.dbuser,
+                             passwd = self.dbpassword, host = self.dbhost, db = self.dbname)
+        db = server.new_database("test", description="Just for testing")
+        infile = os.path.join(os.path.dirname(__file__), 'test_files', 'GCF_000005845.2_ASM584v2_genomic.gbff')
+        count = db.load(SeqIO.parse(infile, "genbank"), fetch_NCBI_taxonomy=True)
+        server.commit()
+
+    def tearDown(self):
+        """Tear down test fixtures, if any."""
+        os.remove(self.dbname)
+
+    def test_no_input_file(self):
+        """Check Error when no file is given"""
+        runner = CliRunner()
+        result = runner.invoke(cli.main, self.common_params)
+        self.assertNotEqual(result.exit_code, 0)
+
+    def test_remove_and_new_taxons_given(self):
+        """Check Error when --remove-taxonomy and -T is given"""
+        runner = CliRunner()
+        result = runner.invoke(cli.main, self.common_params + ['--remove-taxonomy', '-T', '2'])
+        self.assertNotEqual(result.exit_code, 0)
+
+    def test_remove_and_new_taxons_given2(self):
+        """Check Error when --remove-taxonomy and new_taxons is given"""
+        runner = CliRunner()
+        result = runner.invoke(cli.main, self.common_params + ['--remove-taxonomy', 'New:family', 'taxonomy:species'])
+        self.assertNotEqual(result.exit_code, 0)
+
+    def test_remove_taxonomy(self):
+        """Check that taxonomy gets removed properly."""
+        runner = CliRunner()
+        infile = os.path.join(os.path.dirname(__file__), 'test_files', 'modify_header.txt')
+        result = runner.invoke(cli.main, self.common_params + ['--remove-taxonomy', '-i', infile, '--key', 'accession'])
+        self.assertEqual(result.exit_code, 0)
+        print(result.output)
+        server = BioSeqDatabase.open_database(driver = self.dbdriver, user = self.dbuser,
+                             passwd = self.dbpassword, host = self.dbhost, db = self.dbname)
+        rows = server.adaptor.execute_and_fetchall("select taxon_id from bioentry where accession = 'NC_000913'")
+        taxid = rows[0][0]
+        self.assertEqual(taxid, None)
+
+    def test_change_taxonomy(self):
+        """Check that taxonomy can be properly changed."""
+        runner = CliRunner()
+        infile = os.path.join(os.path.dirname(__file__), 'test_files', 'modify_header.txt')
+        result = runner.invoke(cli.main, self.common_params + ['-i', infile, '-T', '112040', '--key', 'accession'])
+        self.assertEqual(result.exit_code, 0)
+        print(result.output)
+        server = BioSeqDatabase.open_database(driver = self.dbdriver, user = self.dbuser,
+                             passwd = self.dbpassword, host = self.dbhost, db = self.dbname)
+        rows = server.adaptor.execute_and_fetchall("select ncbi_taxon_id from taxon join bioentry using(taxon_id) where bioentry.accession = 'NC_000913'")
+        taxid = rows[0][0]
+        self.assertEqual(taxid, 112040)
+
+
+
 class TestAddSequence(unittest.TestCase):
     """Tests `biosqlx add sequence`."""
 
