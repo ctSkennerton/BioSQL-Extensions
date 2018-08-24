@@ -217,6 +217,99 @@ def modify():
     '''Modify existing data in the database'''
 
 @modify.command()
+@click.option('--remove-taxonomy', help='remove any taxonomy information from '
+        'the sequences', is_flag=True, default=False)
+@click.option('-D', '--database-name', help='restrict to sequences from '
+        'this namespace', default=None)
+@click.option('-k', '--key', type=click.Choice(['name', 'accession', 'bioentry_id']),
+        help="", required=True)
+@click.option('-T', '--taxid', help='supply a ncbi taxonomy id that will be applied to '
+        'all sequences in the file, or if new_taxons are supplied on the command line '
+        'this taxonomy ID will be used as the parent taxonomy for the novel lineages. ',
+        default=None)
+@click.option('-i', '--infile', help='file containing identifiers, one per line, '
+        'to modify', required=True)
+@click.argument('new_taxons', nargs=-1 )
+def sequence_taxonomy(remove_taxonomy, database_name, key, taxid, infile, new_taxons):
+    ''' Modify the taxonomic information for sequneces.
+
+        Can be used to remove any taxonomic information, or modifying
+        by specifying a new taxonomy for the sequences using an NCBI
+        taxonomy or custom taxonomies.
+
+        The new_taxons arguments allow you to specify novel taxonomies
+        not currenly in the NCBI database; particularly useful when
+        adding in genome bins or novel isolates yet to make it to public
+        databases.
+
+        Each taxon specified on the command line should take the
+        form of <taxon_name>:<taxon_rank>. Check the taxon table
+        in the database for the appropriate values for the taxon_rank,
+        however in general they will be names you are familiar with:
+        phylum, class, order, family, genus, species
+        e.g. ANME-2ab:family ANME-2b:genus ANME-hr1:species
+    '''
+    if remove_taxonomy and (taxid or new_taxons):
+        click.echo("You cannot specify both --remove-taxonomy with either -T or new_taxons")
+        sys.exit(1)
+
+    if not (remove_taxonomy or taxid or new_taxons):
+        click.echo("You must specify at least one of --remove-taxonomy, -T or new_taxons")
+        sys.exit(1)
+
+    if remove_taxonomy:
+        parent_node = None
+
+    taxon_tree = TaxonTree(server.adaptor)
+
+    if taxid:
+        parent_node = taxon_tree.download_from_ncbi(taxid)
+
+
+    if new_taxons:
+        new_taxons = map(lambda x: x.split(":"), new_taxons)
+
+        for taxname, taxrank in new_taxons:
+            nodes = taxon_tree.find_elements(name=taxname)
+            if len(nodes) == 0:
+                # this guy doesn't exist yet, add him in
+                # and make it the new parent for the next round
+                parent_node = taxon_tree.add(taxname, 'scientific name',
+                        rank=taxrank, parent=parent_node)
+            elif len(nodes) > 1:
+                # name insn't unique, error
+                pass
+            else:
+                # this guy already exists
+                # so we shouldn't add him in again
+                parent_node = nodes[0]
+
+    try:
+        parent_node_id = parent_node._id
+    except AttributeError:
+        parent_node_id = None
+
+    recs = []
+
+    with open(infile) as fp:
+        for line in fp:
+            recs.append((parent_node_id, line.rstrip()))
+
+    if key == 'bioentry_id':
+        server.adaptor.executemany('UPDATE bioentry SET taxon_id = %s WHERE bioentry_id = %s', recs)
+    else:
+        sql = 'UPDATE bioentry SET taxon_id = %s WHERE bioentry_id = ' \
+              '(SELECT bioentry_id FROM bioentry WHERE {} = %s'.format(key)
+        if database_name:
+            sql += ' AND biodatabase_id = (SELECT biodatabase_id FROM biodatabase WHERE name = %s))'
+            recs = [(x, y, database_name) for x, y in recs]
+        else:
+            sql += ')'
+        server.adaptor.executemany(sql,recs)
+
+    server.commit()
+
+@modify.command()
 @click.option('-i', '--infile', help='provide text file, tab delimited, '
         'where the first column is the name of the sequence feature and '
         'the following columns are the values of the annotation that you '
