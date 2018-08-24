@@ -197,6 +197,43 @@ class TaxonTree(object):
 
         return self._make_node(taxon_id)
 
+    def download_from_ncbi(self, ncbi_taxon_id):
+        taxons = self.find_elements(ncbi_taxon_id=ncbi_taxon_id)
+        try:
+            # if it's already in there return it
+            return taxons[0]
+        except IndexError:
+            parent_node = self.get_root()
+            # the given ncbi taxonomy id isn't currently in the database
+            # download it using the Entrez API
+            from Bio import Entrez
+            handle = Entrez.efetch( db="taxonomy", id=str(ncbi_taxon_id), retmode="XML")
+            taxon_record = Entrez.read(handle)
+
+            # add in the tax info for the node into the lineage info
+            taxon_record[0]['LineageEx'].append(
+                    {'Rank': taxon_record[0]['Rank'],
+                        'ScientificName': taxon_record[0]['ScientificName'],
+                        'TaxId': taxon_record[0]['TaxId']
+                        })
+
+            lineage = taxon_record[0]['LineageEx']
+            for tax_info in lineage:
+                this_tax = self.find_elements(ncbi_taxon_id=tax_info['TaxId'])
+                if len(this_tax) == 0:
+                    # this guy doesn't exist yet, add him in
+                    # and make it the new parent for the next round
+                    parent_node = self.add(tax_info['ScientificName'], 'scientific name',
+                            rank=tax_info['Rank'], parent=parent_node, ncbi_taxon_id=tax_info['TaxId'])
+                elif len(this_tax) > 1:
+                    raise IntegrityError("There are more than one taxons associated with the NCBI taxonomy ID {}".format(ncbi_taxon_id))
+                else:
+                    # this guy already exists
+                    # so we shouldn't add him in again
+                    parent_node = this_tax[0]
+
+            return parent_node
+
     def remove(self, node):
         if not isinstance(node, TaxonNode):
             raise ValueError("You must pass in a valid TaxonNode object")
