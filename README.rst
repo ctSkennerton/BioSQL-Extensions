@@ -245,6 +245,68 @@ incorrect; in this case use the ``--replace`` flag to the script.
     biosqlx modify annotation -i annotations.tsv --replace --key locus_tag
 
 
+``biosqlx modify sequence_taxonomy``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Remove, change or add taxonomic information about sequences.
+
+You need to have a file (given using the ``-i`` option) containing
+the identifiers for individual contigs present in the database; each
+identifier must be listed on a single line.  There are three options for
+the type of identifier that must be used in the input file and given
+using the ``--key`` option: name, accession, bioentry_id. The example
+below shows the beginning of a genbank formatted file, the ``name`` of
+the sequence is "NC_000913", which is the same as the ``accession``. The
+``bioentry_id`` option is specific to the database; it is the internal
+ID used for contigs. Any contig that gets added to the database will
+receive a ``bioentry_id`` and this information can be found in the csv
+output format from ``biosqlx export sequence`` or programatically.
+
+::
+    LOCUS       NC_000913            4641652 bp    DNA     circular CON 08-AUG-2016
+    DEFINITION  Escherichia coli str. K-12 substr. MG1655, complete genome.
+    ACCESSION   NC_000913
+    VERSION     NC_000913.3
+    DBLINK      BioProject: PRJNA57779
+                BioSample: SAMN02604091
+                Assembly: GCF_000005845.2
+
+Removing taxonomic information
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Sometimes the taxonomy of a sequence is incorrect, for example if a
+contig is incorrectly placed into a genome bin. In this case, use the
+``--remove-taxonomy`` option. Using the example sequence given above
+and assuming that sequence is already in the database, the input file
+would contain a single line::
+
+    NC_000913
+
+And the commandline would be::
+
+    biosqlx modify sequence_taxonomy --key accession -i infile.txt --remove-taxonomy
+
+Modifying a taxonomy
+^^^^^^^^^^^^^^^^^^^^
+You can change the taxonomy of any sequence using an NCBI taxonomy ID
+given using the ``-T`` option. For example lets change a sequence to
+*Desulfovibrio vulgaris*::
+
+    biosqlx modify sequence_taxonomy --key accession -i infile.txt -T 872
+
+This will overwrite whatever taxonomic information is currently in the
+database for the sequences and if the taxonomic information isn't already
+in the database (i.e. *Desulfovibrio vulgaris* isn't in the database yet),
+then the taxonomy will be automatically downloaded from NCBI and added in.
+
+Modifying a taxonomy with a novel ogranism (not in NCBI)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Sometimes you want to modify the taxonomy of an organism that isn't in
+NCBI or change it's taxonomy to something other than what is in NCBI. To
+do this you need to specify both ``-T`` and ``new_taxons``, in a similar
+way to `biosqlx add sequence`_. For example::
+
+    biosqlx modify sequence_taxonomy --key accession -i infile.txt -T 94695 ANME-2ab:family ANME-2a:genus "ANME sp. AnotherNewGenome:species"
+
+
 ``biosqlx modify taxonomy``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Add, change, or remove taxonomy IDs for sequences or the taxonomy

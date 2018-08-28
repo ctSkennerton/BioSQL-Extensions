@@ -2,6 +2,12 @@
 History
 =======
 
+0.5.0 (2018-08-28)
+------------------
+
+* Add in ``biosqlx modify sequence_taxonomy``. Now you can change the
+  taxonomy of sequences already in the database.
+
 0.4.0 (2018-08-09)
 ------------------
 
