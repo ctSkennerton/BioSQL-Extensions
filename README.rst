@@ -200,9 +200,7 @@ Lets look at an example of what "qualifiers" are and how they could be
 represented in the input file. Below is a excerpt from a genbank file
 that shows all of the annotations for a particular protein. The
 qualifiers of the gene are shown on the lines that begin with a "/"
-character and come before the "=" character (eg. gene, EC\_number).
-
-::
+character and come before the "=" character (eg. gene, EC\_number)::
 
     CDS             complement(6523..7818)
                     /gene="proS"
@@ -259,9 +257,8 @@ the sequence is "NC_000913", which is the same as the ``accession``. The
 ``bioentry_id`` option is specific to the database; it is the internal
 ID used for contigs. Any contig that gets added to the database will
 receive a ``bioentry_id`` and this information can be found in the csv
-output format from ``biosqlx export sequence`` or programatically.
+output format from ``biosqlx export sequence`` or programatically.::
 
-::
     LOCUS       NC_000913            4641652 bp    DNA     circular CON 08-AUG-2016
     DEFINITION  Escherichia coli str. K-12 substr. MG1655, complete genome.
     ACCESSION   NC_000913
