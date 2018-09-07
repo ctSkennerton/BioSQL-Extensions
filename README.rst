@@ -413,3 +413,20 @@ the following tree::
     │   │   └── ANME-2ab (family)
 
 
+
+``biosqlx delete``
+------------------
+
+
+``biosqlx delete sequence``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+This command is for deleting contigs from the database. You must provide
+an input file containing contig identifiers, one per line, and specify
+using ``--key`` what these identifers are: there are three options name,
+accession, bioentry_id. These are the same options as in ``biosqlx modify
+sequence_taxonomy``, so look at the documentation for that command for
+an example of what name, accession and bioentry_id mean. You can also
+restrict the search to a particulare namespace with ``-D``, if you know
+that the identifiers are duplicated between namespaces. For example, you
+have contigs named the same thing in two different namespaces. This should
+never happen with the bioentry_id, but is possible with name or accession.
