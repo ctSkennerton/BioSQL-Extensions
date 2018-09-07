@@ -76,6 +76,40 @@ def main(database, driver, port, user, password, host):
                 db=database, user=user, host=host, passwd=password)
     return 0
 
+@main.group()
+def delete():
+    """ Delete information from the database
+    """
+
+@delete.command()
+@click.option('-i', '--infile', help='input file containing sequence identifiers, one per line', required=True)
+@click.option('-D', '--database-name', help='Restrict the namespace to the one given. Usful '\
+        'for when there are separate sequences with the same name in two separate namespaces.', default=None)
+@click.option('-k', '--key', type=click.Choice(['name', 'accession', 'bioentry_id']),
+        help="give the type of identifier in the input file", required=True)
+def sequence(infile, database_name, key):
+    '''Delete sequences from the database.
+    '''
+
+    with open(infile) as fp:
+        for line in fp:
+            line = line.rstrip()
+            if database_name is None:
+                select_sql = 'SELECT bioentry_id FROM bioentry WHERE {} = %s'.format(key)
+                rows = server.execute_and_fetchall(select_sql, (line,))
+            else:
+                select_sql += ' AND biodatabase_id = (SELECT biodatabase_id FROM biodatabase WHERE name = %s)'
+                rows = server.execute_and_fetchall(select_sql, (line,database_name))
+
+            if len(rows) > 1:
+                click.echo("ERROR: The sequence {} is not unique in the database".format(line), file=sys.stderr)
+                sys.exit(1)
+            elif len(rows) == 0:
+                click.echo("WARNING: The sequence {} is not found in the database".format(line), file=sys.stderr)
+            else:
+                server.execute('DELETE FROM bioentry WHERE bioentry_id = %s', (rows[0][0],))
+    server.commit()
+
 
 @main.group()
 def add():
