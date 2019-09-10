@@ -96,10 +96,10 @@ def sequence(infile, database_name, key):
             line = line.rstrip()
             if database_name is None:
                 select_sql = 'SELECT bioentry_id FROM bioentry WHERE {} = %s'.format(key)
-                rows = server.execute_and_fetchall(select_sql, (line,))
+                rows = server.adaptor.execute_and_fetchall(select_sql, (line,))
             else:
                 select_sql += ' AND biodatabase_id = (SELECT biodatabase_id FROM biodatabase WHERE name = %s)'
-                rows = server.execute_and_fetchall(select_sql, (line,database_name))
+                rows = server.adaptor.execute_and_fetchall(select_sql, (line,database_name))
 
             if len(rows) > 1:
                 click.echo("ERROR: The sequence {} is not unique in the database".format(line), file=sys.stderr)
@@ -107,7 +107,7 @@ def sequence(infile, database_name, key):
             elif len(rows) == 0:
                 click.echo("WARNING: The sequence {} is not found in the database".format(line), file=sys.stderr)
             else:
-                server.execute('DELETE FROM bioentry WHERE bioentry_id = %s', (rows[0][0],))
+                server.adaptor.execute('DELETE FROM bioentry WHERE bioentry_id = %s', (rows[0][0],))
     server.commit()
 
 
