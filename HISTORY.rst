@@ -2,6 +2,11 @@
 History
 =======
 
+0.6.1 (2019-11-06)
+------------------
+
+* Fix bug with ``biosqlx add sequence`` when the ``-D`` parameter has no value
+
 0.6.0 (2018-09-07)
 ------------------
 

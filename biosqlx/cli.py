@@ -130,7 +130,7 @@ def add():
         'An error will occur if this taxid is not present in the database and --lookup-taxonomy is false.',
         default=None)
 @click.option('-D', '--database-name', help='Add the sequences to this namespace. '\
-        'If it doesn\'t yet exist, it will be created', default=None)
+        'If it doesn\'t yet exist, it will be created', required=True, default=None)
 @click.argument('new_taxons', nargs=-1 )
 def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, database_name, new_taxons):
     '''Add new sequences to the database.
@@ -171,6 +171,12 @@ def sequence(fasta, gff, genbank, lookup_taxonomy, taxid, database_name, new_tax
                 saved.append(rec)
             db.load(saved, fetch_NCBI_taxonomy=fetch_taxonomy)
 
+    if not database_name:
+        click.echo("You must supply a value for -D. This can be one of the current" \
+                   " namespaces or a new one. You can see a list of the current" \
+                   " namespaces with biosqlx export namespace")
+        sys.exit(1)
+        
     if database_name not in server.keys():
         server.new_database(database_name)
 
